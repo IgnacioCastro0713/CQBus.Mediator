@@ -1,11 +1,14 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-		<TargetFrameworks>net8.0</TargetFrameworks>
+		<TargetFramework>net8.0</TargetFramework>
 		<RootNamespace>CQBus.Mediator</RootNamespace>
 		<Nullable>enable</Nullable>
 		<LangVersion>12.0</LangVersion>
 		<Authors>Ignacio Menchaca</Authors>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<PackageTags>CQBus.Mediator;Mediator;MediatR</PackageTags>
+		<PackageProjectUrl>https://github.com/IgnacioCastro0713/CQBus.Mediator</PackageProjectUrl>
+		<RepositoryUrl>https://github.com/IgnacioCastro0713/CQBus.Mediator</RepositoryUrl>
 	</PropertyGroup>
 	<ItemGroup>
 		<PackageReference Include="IsExternalInit">
@@ -20,5 +23,9 @@
 		<AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
 			<_Parameter1>Mediator.Tests</_Parameter1>
 		</AssemblyAttribute>
+	</ItemGroup>
+
+	<ItemGroup>
+		<None Include="..\..\README.md" Pack="true" PackagePath="\" />
 	</ItemGroup>
 </Project>
