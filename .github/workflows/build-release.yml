@@ -35,7 +35,7 @@ jobs:
       run: dotnet build src/Mediator/Mediator.csproj --configuration Release --no-restore
       
     - name: Test
-      run: dotnet test tests/Mediator.Tests/Mediator.Tests.csproj --no-build --verbosity normal
+      run: dotnet test tests/Mediator.Tests/Mediator.Tests.csproj --configuration Debug --framework net8.0
 
     - name: Pack project
       run: dotnet pack src/Mediator/Mediator.csproj --configuration Release --no-build -o ./nupkgs /p:PackageVersion=${{ steps.get_version.outputs.version }}
