@@ -1,5 +1,10 @@
 # CQBus.Mediator
 
+![Release](https://github.com/IgnacioCastro0713/CQBus.Mediator/actions/workflows/build-release.yml/badge.svg)
+[![NuGet](https://img.shields.io/nuget/dt/CQBus.Mediator.svg)](https://www.nuget.org/packages/CQBus.Mediator) 
+[![NuGet](https://img.shields.io/nuget/vpre/CQBus.Mediator.svg)](https://www.nuget.org/packages/mediatr)
+[![GitHub](https://img.shields.io/github/license/IgnacioCastro0713/CQBus.Mediator?style=flat-square)](https://github.com/IgnacioCastro0713/CQBus.Mediator/blob/main/LICENSE)
+
 CQBus.Mediator is a lightweight, extensible library for implementing the Mediator design pattern in .NET applications.
 
 ## Features
@@ -66,11 +71,11 @@ public class CreateUserCommand : IRequest<int>
 public class CreateUserCommandHandler : IRequestHandler<CreateUserCommand, int>
 {
     // Inject dependencies via constructor (e.g., IUserRepository)
-    public Task<int> Handle(CreateUserCommand request, CancellationToken cancellationToken)
+    public TaskValue<int> Handle(CreateUserCommand request, CancellationToken cancellationToken)
     {
         Console.WriteLine($"Creating user: {request.UserName} with email: {request.Email}");
         // Simulate database operation
-        return Task.FromResult(123); // Return new user ID
+        return TaskValue.FromResult(123); // Return new user ID
     }
 }
 ```
@@ -88,10 +93,10 @@ public class UserCreatedNotification : INotification
 // Handlers/EmailNotificationHandler.cs
 public class EmailNotificationHandler : INotificationHandler<UserCreatedNotification>
 {
-    public Task Handle(UserCreatedNotification notification, CancellationToken cancellationToken)
+    public TaskValue Handle(UserCreatedNotification notification, CancellationToken cancellationToken)
     {
         Console.WriteLine($"Sending welcome email to user {notification.UserName} (ID: {notification.UserId})");
-        return Task.CompletedTask;
+        return TaskValue.CompletedTask;
     }
 }
 ```
@@ -101,7 +106,7 @@ public class EmailNotificationHandler : INotificationHandler<UserCreatedNotifica
 ```csharp
 public class LoggingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
 {
-    public async Task<TResponse> Handle(
+    public async TaskValue<TResponse> Handle(
         TRequest request,
         RequestHandlerDelegate<TResponse> next,
         CancellationToken cancellationToken)
@@ -128,7 +133,7 @@ public class UserController : ControllerBase
     }
 
     [HttpPost("create")]
-    public async Task<IActionResult> CreateUser([FromBody] CreateUserCommand command)
+    public async TaskValue<IActionResult> CreateUser([FromBody] CreateUserCommand command)
     {
         // Send a request and get a response
         int userId = await _mediator.Send(command);
