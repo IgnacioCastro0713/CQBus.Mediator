@@ -5,13 +5,15 @@ name: Release
 
 on:
   push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+    tags:
+      - '*.*.*'
 
 jobs:
   build:
-
+    strategy:
+        matrix:
+          os: [ubuntu-latest]
+        fail-fast: false
     runs-on: ubuntu-latest
 
     steps:
