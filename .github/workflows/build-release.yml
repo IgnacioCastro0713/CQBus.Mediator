@@ -5,9 +5,8 @@ name: Release
 
 on:
   push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+    tags:
+      - '*.*.*'
 
 jobs:
   build:
@@ -37,6 +36,10 @@ jobs:
     - name: Test
       run: dotnet test tests/Mediator.Tests/Mediator.Tests.csproj --configuration Debug --framework net8.0
 
+    - name: Extract version
+      id: get_version
+      run: echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+        
     - name: Pack project
       run: dotnet pack src/Mediator/Mediator.csproj --configuration Release --no-build -o ./nupkgs /p:PackageVersion=${{ steps.get_version.outputs.version }}
 

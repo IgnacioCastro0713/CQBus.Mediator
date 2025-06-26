@@ -1,6 +1,6 @@
 # CQBus.Mediator
 
-CQBus.Mediator is a lightweight, extensible library for implementing the Mediator design pattern in .NET applications. It simplifies communication between components by decoupling senders and receivers, making your codebase more maintainable and testable.
+CQBus.Mediator is a lightweight, extensible library for implementing the Mediator design pattern in .NET applications.
 
 ## Features
 
@@ -8,7 +8,7 @@ CQBus.Mediator is a lightweight, extensible library for implementing the Mediato
 - **Notification Publishing**: Enables broadcasting notifications to multiple handlers.
 - **High Performance**: Optimized with caching and efficient reflection techniques.
 - **Extensibility**: Easily integrates with dependency injection and custom publishers.
-- **Cross-Platform**: Targets `.NET Standard 2.0` and `.NET 8`, ensuring compatibility with a wide range of applications.
+- **Cross-Platform**: Target `.NET 8`, ensuring compatibility with a wide range of applications.
 - **Compatible with MediatR** — migrate with minimal effort
 - **Currently supports**
   1. Simple Request:
@@ -171,7 +171,7 @@ To run the tests:
 3. Run the tests using your terminal:
 
    ```sh
-   dotnet test
+   dotnet test tests/Mediator.Tests/Mediator.Tests.csproj --configuration Debug --framework net8.0
    ```
 
 Test results will be displayed in the console, helping ensure the reliability and correctness of the mediator library.
@@ -206,10 +206,6 @@ optimize your usage and configuration of the mediator library.
 ## Contributing
 
 Contributions, issues, and feature requests are welcome\! Feel free to check.
-
-## 📄 License
-
-This project is licensed under the [MIT License].
 
 ## Acknowledgments
 
