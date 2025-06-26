@@ -6,6 +6,7 @@
 		<LangVersion>12.0</LangVersion>
 		<Authors>Ignacio Menchaca</Authors>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<PackageId>CQBus.Mediator</PackageId>
 		<PackageTags>CQBus.Mediator;Mediator;MediatR</PackageTags>
 		<PackageProjectUrl>https://github.com/IgnacioCastro0713/CQBus.Mediator</PackageProjectUrl>
 		<RepositoryUrl>https://github.com/IgnacioCastro0713/CQBus.Mediator</RepositoryUrl>
