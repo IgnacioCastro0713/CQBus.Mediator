@@ -150,6 +150,7 @@ To run the sample:
 2. Build and run the project:
 
    ```sh
+   cd samples/API
    dotnet run
    ```
 
