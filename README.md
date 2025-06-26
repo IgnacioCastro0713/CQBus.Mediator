@@ -2,7 +2,7 @@
 
 ![Release](https://github.com/IgnacioCastro0713/CQBus.Mediator/actions/workflows/build-release.yml/badge.svg)
 [![NuGet](https://img.shields.io/nuget/dt/CQBus.Mediator.svg)](https://www.nuget.org/packages/CQBus.Mediator) 
-[![NuGet](https://img.shields.io/nuget/vpre/CQBus.Mediator.svg)](https://www.nuget.org/packages/mediatr)
+[![NuGet](https://img.shields.io/nuget/vpre/CQBus.Mediator.svg)](https://www.nuget.org/packages/CQBus.Mediator)
 [![GitHub](https://img.shields.io/github/license/IgnacioCastro0713/CQBus.Mediator?style=flat-square)](https://github.com/IgnacioCastro0713/CQBus.Mediator/blob/main/LICENSE)
 
 CQBus.Mediator is a lightweight, extensible library for implementing the Mediator design pattern in .NET applications.
