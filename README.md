@@ -13,7 +13,6 @@ CQBus.Mediator is a lightweight, extensible library for implementing the Mediato
 - **Notification Publishing**: Enables broadcasting notifications to multiple handlers.
 - **High Performance**: Optimized with caching and efficient reflection techniques.
 - **Extensibility**: Easily integrates with dependency injection and custom publishers.
-- **Cross-Platform**: Target `.NET 8`, ensuring compatibility with a wide range of applications.
 - **Compatible with MediatR** — migrate with minimal effort
 - **Currently supports**
   1. Simple Request:

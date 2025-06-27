@@ -37,10 +37,6 @@ public class Benchmarks
         _mediatR = provider.GetRequiredService<MediatR.IMediator>();
     }
 
-    // --------------------------
-    // Warm Benchmarks
-    // --------------------------
-
     [BenchmarkCategory("Send"), Benchmark(Baseline = true)]
     public Task<string> MediatR___Send_Warm()
     {

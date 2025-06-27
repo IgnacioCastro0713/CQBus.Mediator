@@ -1,7 +1,6 @@
 using API;
 using API.Behaviors;
 using CQBus.Mediator;
-using CQBus.Mediator.NotificationPublishers;
 using CQBus.Mediator.Pipelines;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
@@ -21,8 +20,6 @@ builder.Services.AddMediator(cfg =>
 
     cfg.AddStreamBehavior(typeof(IStreamPipelineBehavior<,>), typeof(StreamUnhandledExceptionBehavior<,>));
     cfg.AddOpenStreamBehavior(typeof(StreamLoggingBehavior<,>));
-
-    cfg.PublisherStrategyType = typeof(ForeachAwaitPublisher);
 });
 
 builder.Services.AddScoped<IWeatherService, WeatherService>();
