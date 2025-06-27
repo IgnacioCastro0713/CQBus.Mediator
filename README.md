@@ -29,6 +29,18 @@ CQBus.Mediator is a lightweight, extensible library for implementing the Mediato
   4. Publishers:
      1. `INotificationPublisher`
 
+
+## NuGet package:
+
+```pwsh
+dotnet add package CQBus.Mediator --version 1.0.6
+```
+or
+```xml
+<PackageReference Include="CQBus.Mediator" Version="1.0.6" />
+```
+
+
 ## Getting Started
 
 ### Installation
