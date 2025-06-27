@@ -55,15 +55,15 @@ In your `Program.cs` or DI configuration, register the mediator and its handlers
 // Add the Mediator to your service collection
 builder.Services.AddMediator(cfg =>
 {
+    // Register Handlers
     cfg.RegisterServicesFromAssembly(typeof(Program).Assembly);
 
+    // Register Behaviors
     cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(UnhandledExceptionBehavior<,>));
     cfg.AddOpenBehavior(typeof(LoggingBehavior<,>));
-
+    // Register Stream Behaviors
     cfg.AddStreamBehavior(typeof(IStreamPipelineBehavior<,>), typeof(StreamUnhandledExceptionBehavior<,>));
     cfg.AddOpenStreamBehavior(typeof(StreamLoggingBehavior<,>));
-
-    cfg.PublisherStrategyType = typeof(ForeachAwaitPublisher);
 });
 
 ```
@@ -82,11 +82,11 @@ public class CreateUserCommand : IRequest<int>
 public class CreateUserCommandHandler : IRequestHandler<CreateUserCommand, int>
 {
     // Inject dependencies via constructor (e.g., IUserRepository)
-    public TaskValue<int> Handle(CreateUserCommand request, CancellationToken cancellationToken)
+    public ValueTask<int> Handle(CreateUserCommand request, CancellationToken cancellationToken)
     {
         Console.WriteLine($"Creating user: {request.UserName} with email: {request.Email}");
         // Simulate database operation
-        return TaskValue.FromResult(123); // Return new user ID
+        return ValueTask.FromResult(123); // Return new user ID
     }
 }
 ```
@@ -104,10 +104,10 @@ public class UserCreatedNotification : INotification
 // Handlers/EmailNotificationHandler.cs
 public class EmailNotificationHandler : INotificationHandler<UserCreatedNotification>
 {
-    public TaskValue Handle(UserCreatedNotification notification, CancellationToken cancellationToken)
+    public ValueTask Handle(UserCreatedNotification notification, CancellationToken cancellationToken)
     {
         Console.WriteLine($"Sending welcome email to user {notification.UserName} (ID: {notification.UserId})");
-        return TaskValue.CompletedTask;
+        return ValueTask.CompletedTask;
     }
 }
 ```
@@ -117,7 +117,7 @@ public class EmailNotificationHandler : INotificationHandler<UserCreatedNotifica
 ```csharp
 public class LoggingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
 {
-    public async TaskValue<TResponse> Handle(
+    public async ValueTask<TResponse> Handle(
         TRequest request,
         RequestHandlerDelegate<TResponse> next,
         CancellationToken cancellationToken)
@@ -144,7 +144,7 @@ public class UserController : ControllerBase
     }
 
     [HttpPost("create")]
-    public async TaskValue<IActionResult> CreateUser([FromBody] CreateUserCommand command)
+    public async ValueTask<IActionResult> CreateUser([FromBody] CreateUserCommand command)
     {
         // Send a request and get a response
         int userId = await _mediator.Send(command);
