@@ -54,11 +54,11 @@ jobs:
         body: |
           Release for version ${{ github.ref_name }}.
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
 
     - name: Upload NuGet package to Release
       uses: softprops/action-gh-release@v2
       with:
         files: ./nupkgs/*.nupkg
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
