@@ -12,10 +12,13 @@
 	<ItemGroup>
 		<PackageReference Include="BenchmarkDotNet" />
 		<PackageReference Include="BenchmarkDotNet.Diagnostics.Windows" />
-		<PackageReference Include="CQBus.Mediator" />
 		<PackageReference Include="MediatR" />
 		<PackageReference Include="Microsoft.Extensions.DependencyInjection" />
 		<PackageReference Include="System.Linq.Async" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <ProjectReference Include="..\..\src\Mediator\Mediator.csproj" />
 	</ItemGroup>
 
 </Project>

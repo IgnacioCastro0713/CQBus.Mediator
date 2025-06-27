@@ -20,18 +20,25 @@ public sealed class Mediator(
     private readonly INotificationPipelineBuilder _notificationPipelineBuilder = notificationPipelineBuilder ?? new NotificationPipelineBuilder();
     private readonly IStreamPipelineBuilder _streamPipelineBuilder = streamPipelineBuilder ?? new StreamPipelineBuilder();
 
-    private static readonly ConcurrentDictionary<(Type requestType, Type responseType), Delegate> RequestHandlerCache = new();
+    private static readonly MethodInfo BuildAndExecuteRequestMethod = typeof(IRequestPipelineBuilder).GetMethod(nameof(IRequestPipelineBuilder.BuildAndExecute))!;
+    private static readonly MethodInfo BuildAndExecuteNotificationMethod = typeof(INotificationPipelineBuilder).GetMethod(nameof(INotificationPipelineBuilder.BuildAndExecute))!;
+    private static readonly MethodInfo BuildAndExecuteStreamMethod = typeof(IStreamPipelineBuilder).GetMethod(nameof(IStreamPipelineBuilder.BuildAndExecute))!;
+
+    private static readonly ConcurrentDictionary<(Type requestType, Type responseType), Delegate> RequestHandlerCache = new(new TypeTuple());
     private static readonly ConcurrentDictionary<Type, Delegate> NotificationHandlerCache = new();
-    private static readonly ConcurrentDictionary<(Type requestType, Type responseType), Delegate> StreamHandlerCache = new();
+    private static readonly ConcurrentDictionary<(Type requestType, Type responseType), Delegate> StreamHandlerCache = new(new TypeTuple());
 
     public ValueTask<TResponse> Send<TResponse>(IRequest<TResponse> request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
 
+        Type requestType = request.GetType();
+        Type responseType = typeof(TResponse);
+
         var requestHandler = (Func<IRequestPipelineBuilder, IRequest<TResponse>, IServiceProvider, CancellationToken, ValueTask<TResponse>>)
             RequestHandlerCache.GetOrAdd(
-                (request.GetType(), typeof(TResponse)),
-                types => CreateRequestHandler<TResponse>(types.requestType, types.responseType));
+                (requestType, responseType),
+                static types => CreateRequestHandler<TResponse>(types.requestType, types.responseType));
 
         return requestHandler(_requestPipelineBuilder, request, serviceProvider, cancellationToken);
     }
@@ -41,10 +48,12 @@ public sealed class Mediator(
     {
         ArgumentNullException.ThrowIfNull(notification);
 
+        Type notificationType = notification.GetType();
+
         var notificationHandler = (Func<INotificationPipelineBuilder, TNotification, IServiceProvider, INotificationPublisher, CancellationToken, ValueTask>)
             NotificationHandlerCache.GetOrAdd(
-                notification.GetType(),
-                CreateNotificationHandler<TNotification>);
+                notificationType,
+                static type => CreateNotificationHandler<TNotification>(type));
 
         return notificationHandler(_notificationPipelineBuilder, notification, serviceProvider, _publisher, cancellationToken);
     }
@@ -53,10 +62,13 @@ public sealed class Mediator(
     {
         ArgumentNullException.ThrowIfNull(request);
 
+        Type requestType = request.GetType();
+        Type responseType = typeof(TResponse);
+
         var streamHandler = (Func<IStreamPipelineBuilder, IStreamRequest<TResponse>, IServiceProvider, CancellationToken, IAsyncEnumerable<TResponse>>)
             StreamHandlerCache.GetOrAdd(
-                (request.GetType(), typeof(TResponse)),
-                types => CreateStreamHandler<TResponse>(types.requestType, types.responseType));
+                (requestType, responseType),
+                static types => CreateStreamHandler<TResponse>(types.requestType, types.responseType));
 
         return streamHandler(_streamPipelineBuilder, request, serviceProvider, cancellationToken);
     }
@@ -70,12 +82,7 @@ public sealed class Mediator(
         ParameterExpression cancellationTokenParam = Expression.Parameter(typeof(CancellationToken), "cancellationToken");
 
         UnaryExpression requestCast = Expression.Convert(requestParam, requestType);
-
-        MethodInfo buildAndExecuteMethod = typeof(IRequestPipelineBuilder)
-            .GetMethods()
-            .Single(m => m.Name == nameof(IRequestPipelineBuilder.BuildAndExecute));
-
-        MethodInfo genericMethod = buildAndExecuteMethod.MakeGenericMethod(requestType, responseType);
+        MethodInfo genericMethod = BuildAndExecuteRequestMethod.MakeGenericMethod(requestType, responseType);
 
         MethodCallExpression methodCall = Expression.Call(
             pipelineBuilderParam,
@@ -102,11 +109,7 @@ public sealed class Mediator(
         ParameterExpression publisherParam = Expression.Parameter(typeof(INotificationPublisher), "publisher");
         ParameterExpression cancellationTokenParam = Expression.Parameter(typeof(CancellationToken), "cancellationToken");
 
-        MethodInfo buildAndExecuteMethod = typeof(INotificationPipelineBuilder)
-            .GetMethods()
-            .Single(m => m.Name == nameof(INotificationPipelineBuilder.BuildAndExecute));
-
-        MethodInfo genericMethod = buildAndExecuteMethod.MakeGenericMethod(notificationType);
+        MethodInfo genericMethod = BuildAndExecuteNotificationMethod.MakeGenericMethod(notificationType);
 
         MethodCallExpression methodCall = Expression.Call(
             pipelineBuilderParam,
@@ -134,12 +137,7 @@ public sealed class Mediator(
         ParameterExpression cancellationTokenParam = Expression.Parameter(typeof(CancellationToken), "cancellationToken");
 
         UnaryExpression requestCast = Expression.Convert(requestParam, requestType);
-
-        MethodInfo buildAndExecuteMethod = typeof(IStreamPipelineBuilder)
-            .GetMethods()
-            .Single(m => m.Name == nameof(IStreamPipelineBuilder.BuildAndExecute));
-
-        MethodInfo genericMethod = buildAndExecuteMethod.MakeGenericMethod(requestType, responseType);
+        MethodInfo genericMethod = BuildAndExecuteStreamMethod.MakeGenericMethod(requestType, responseType);
 
         MethodCallExpression methodCall = Expression.Call(
             pipelineBuilderParam,
@@ -155,4 +153,11 @@ public sealed class Mediator(
             serviceProviderParam,
             cancellationTokenParam).Compile();
     }
+}
+
+internal class TypeTuple : IEqualityComparer<(Type, Type)>
+{
+    public bool Equals((Type, Type) x, (Type, Type) y) => x.Item1 == y.Item1 && x.Item2 == y.Item2;
+
+    public int GetHashCode((Type, Type) obj) => HashCode.Combine(obj.Item1, obj.Item2);
 }

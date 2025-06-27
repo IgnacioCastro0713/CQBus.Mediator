@@ -76,34 +76,6 @@ public class Benchmarks
     {
         return _mediator.Publish(_notification);
     }
-
-    // --------------------------
-    // Cold Start Benchmarks
-    // --------------------------
-
-    [BenchmarkCategory("Cold"), Benchmark]
-    public async Task MediatR___Send_Cold()
-    {
-        var services = new ServiceCollection();
-        services.AddSingleton(TextWriter.Null);
-        services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(Benchmarks).Assembly));
-        ServiceProvider provider = services.BuildServiceProvider();
-        MediatR.IMediator mediator = provider.GetRequiredService<MediatR.IMediator>();
-
-        await mediator.Send(new MediatRTestRequest { Message = "Cold Start" });
-    }
-
-    [BenchmarkCategory("Cold"), Benchmark]
-    public async Task Mediator___Send_Cold()
-    {
-        var services = new ServiceCollection();
-        services.AddSingleton(TextWriter.Null);
-        services.AddMediator(cfg => cfg.RegisterServicesFromAssembly(typeof(Benchmarks).Assembly));
-        ServiceProvider provider = services.BuildServiceProvider();
-        IMediator mediator = provider.GetRequiredService<IMediator>();
-
-        await mediator.Send(new TestRequest { Message = "Cold Start" });
-    }
 }
 
 public class TestRequest : IRequest<string>

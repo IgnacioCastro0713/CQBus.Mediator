@@ -15,7 +15,7 @@ public interface INotificationPipelineBuilder
         where TNotification : INotification;
 }
 
-internal class NotificationPipelineBuilder : INotificationPipelineBuilder
+internal sealed class NotificationPipelineBuilder : INotificationPipelineBuilder
 {
     public ValueTask BuildAndExecute<TNotification>(
         TNotification notification,
@@ -24,8 +24,30 @@ internal class NotificationPipelineBuilder : INotificationPipelineBuilder
         CancellationToken cancellationToken)
         where TNotification : INotification
     {
-        IEnumerable<INotificationHandler<TNotification>> handlers = services.GetServices<INotificationHandler<TNotification>>();
+        using IEnumerator<INotificationHandler<TNotification>> handlersEnumerator = services.GetServices<INotificationHandler<TNotification>>().GetEnumerator();
+        if (!handlersEnumerator.MoveNext())
+        {
+            return default;
+        }
 
-        return publisher.Publish(handlers, notification, cancellationToken);
+        INotificationHandler<TNotification> firstHandler = handlersEnumerator.Current;
+
+        if (!handlersEnumerator.MoveNext())
+        {
+            return firstHandler.Handle(notification, cancellationToken);
+        }
+
+        List<INotificationHandler<TNotification>> handlersList =
+        [
+            firstHandler,
+            handlersEnumerator.Current
+        ];
+
+        while (handlersEnumerator.MoveNext())
+        {
+            handlersList.Add(handlersEnumerator.Current);
+        }
+
+        return publisher.Publish(handlersList, notification, cancellationToken);
     }
 }

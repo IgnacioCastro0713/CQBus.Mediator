@@ -14,7 +14,7 @@ public interface IRequestPipelineBuilder
         where TRequest : IRequest<TResponse>;
 }
 
-internal class RequestPipelineBuilder : IRequestPipelineBuilder
+internal sealed class RequestPipelineBuilder : IRequestPipelineBuilder
 {
     public ValueTask<TResponse> BuildAndExecute<TRequest, TResponse>(
         TRequest request,
@@ -23,14 +23,40 @@ internal class RequestPipelineBuilder : IRequestPipelineBuilder
         where TRequest : IRequest<TResponse>
     {
         IRequestHandler<TRequest, TResponse> handler = services.GetRequiredService<IRequestHandler<TRequest, TResponse>>();
-        IPipelineBehavior<TRequest, TResponse>[] behaviors = services.GetServices<IPipelineBehavior<TRequest, TResponse>>().ToArray();
+        IEnumerable<IPipelineBehavior<TRequest, TResponse>> behaviorsEnumerable = services.GetServices<IPipelineBehavior<TRequest, TResponse>>();
+
+        using IEnumerator<IPipelineBehavior<TRequest, TResponse>> behaviorEnumerator = behaviorsEnumerable.GetEnumerator();
+
+        if (!behaviorEnumerator.MoveNext())
+        {
+            return handler.Handle(request, cancellationToken);
+        }
+
+        IPipelineBehavior<TRequest, TResponse> firstBehavior = behaviorEnumerator.Current;
+
+        if (!behaviorEnumerator.MoveNext())
+        {
+            return firstBehavior.Handle(request, ct => handler.Handle(request, ct), cancellationToken);
+        }
+
+        List<IPipelineBehavior<TRequest, TResponse>> behaviorsList =
+        [
+            firstBehavior,
+            behaviorEnumerator.Current
+        ];
+
+        while (behaviorEnumerator.MoveNext())
+        {
+            behaviorsList.Add(behaviorEnumerator.Current);
+        }
+
         RequestHandlerDelegate<TResponse> pipeline = ct => handler.Handle(request, ct);
 
-        for (int i = behaviors.Length - 1; i >= 0; i--)
+        for (int i = behaviorsList.Count - 1; i >= 0; i--)
         {
-            IPipelineBehavior<TRequest, TResponse> behavior = behaviors[i];
+            IPipelineBehavior<TRequest, TResponse> currentBehavior = behaviorsList[i];
             RequestHandlerDelegate<TResponse> next = pipeline;
-            pipeline = ct => behavior.Handle(request, next, ct);
+            pipeline = ct => currentBehavior.Handle(request, next, ct);
         }
 
         return pipeline(cancellationToken);

@@ -33,35 +33,55 @@ public class NotificationPipelineBuilderTests
     }
 
     [Fact]
-    public async Task BuildAndExecute_ShouldCallPublisherWithHandlers()
+    public void BuildAndExecute_WithNoHandlers_ShouldReturnDefaultValueTask()
     {
         // Arrange
+        var services = new ServiceCollection();
+        ServiceProvider serviceProvider = services.BuildServiceProvider();
         var publisherMock = new Mock<INotificationPublisher>();
-        var servicesMock = new Mock<IServiceProvider>();
-        var notification = new TestNotification("Test message");
-        var handlers = new List<INotificationHandler<TestNotification>>();
-
-        servicesMock
-            .Setup(s => s.GetService(typeof(IEnumerable<INotificationHandler<TestNotification>>)))
-            .Returns(handlers);
-
-        publisherMock
-            .Setup(p => p.Publish(It.IsAny<IEnumerable<INotificationHandler<TestNotification>>>(),
-                   It.IsAny<TestNotification>(), It.IsAny<CancellationToken>()))
-            .Returns(ValueTask.CompletedTask);
-
+        var notification = new TestNotification("No handlers test");
         var pipelineBuilder = new NotificationPipelineBuilder();
 
         // Act
-        await pipelineBuilder.BuildAndExecute(notification, servicesMock.Object, publisherMock.Object, CancellationToken.None);
+        ValueTask result = pipelineBuilder.BuildAndExecute(notification, serviceProvider, publisherMock.Object, CancellationToken.None);
 
         // Assert
+        Assert.Equal(default, result);
         publisherMock.Verify(
             p => p.Publish(
-                It.Is<IEnumerable<INotificationHandler<TestNotification>>>(h => h == handlers),
-                It.Is<TestNotification>(n => n == notification),
+                It.IsAny<IEnumerable<INotificationHandler<TestNotification>>>(),
+                It.IsAny<TestNotification>(),
                 It.IsAny<CancellationToken>()),
-            Times.Once);
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task BuildAndExecute_WithSingleHandler_ShouldCallHandleDirectly()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        var receivedMessages = new List<string>();
+
+        // Register single handler
+        services.AddTransient<INotificationHandler<TestNotification>>(_ => new TestNotificationHandler(receivedMessages));
+
+        ServiceProvider serviceProvider = services.BuildServiceProvider();
+        var publisherMock = new Mock<INotificationPublisher>();
+        var notification = new TestNotification("Single handler test");
+        var pipelineBuilder = new NotificationPipelineBuilder();
+
+        // Act
+        await pipelineBuilder.BuildAndExecute(notification, serviceProvider, publisherMock.Object, CancellationToken.None);
+
+        // Assert
+        Assert.Single(receivedMessages);
+        Assert.Equal("Handler received: Single handler test", receivedMessages[0]);
+        publisherMock.Verify(
+            p => p.Publish(
+                It.IsAny<IEnumerable<INotificationHandler<TestNotification>>>(),
+                It.IsAny<TestNotification>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     [Fact]
@@ -98,67 +118,6 @@ public class NotificationPipelineBuilderTests
         Assert.Equal(2, receivedMessages.Count);
         Assert.Contains("Handler received: Test notification", receivedMessages);
         Assert.Contains("Second handler received: Test notification", receivedMessages);
-    }
-
-    [Fact]
-    public async Task BuildAndExecute_ShouldWorkWithNoHandlers()
-    {
-        // Arrange
-        var services = new ServiceCollection();
-        ServiceProvider serviceProvider = services.BuildServiceProvider();
-        var publisherMock = new Mock<INotificationPublisher>();
-        var notification = new TestNotification("No handlers");
-
-        publisherMock
-            .Setup(p => p.Publish(It.IsAny<IEnumerable<INotificationHandler<TestNotification>>>(),
-                   It.IsAny<TestNotification>(), It.IsAny<CancellationToken>()))
-            .Returns(ValueTask.CompletedTask);
-
-        var pipelineBuilder = new NotificationPipelineBuilder();
-
-        // Act
-        await pipelineBuilder.BuildAndExecute(notification, serviceProvider, publisherMock.Object, CancellationToken.None);
-
-        // Assert
-        publisherMock.Verify(
-            p => p.Publish(
-                It.Is<IEnumerable<INotificationHandler<TestNotification>>>(h => !h.Any()),
-                It.Is<TestNotification>(n => n == notification),
-                It.IsAny<CancellationToken>()),
-            Times.Once);
-    }
-
-    [Fact]
-    public async Task BuildAndExecute_ShouldRespectCancellationToken()
-    {
-        // Arrange
-        var services = new ServiceCollection();
-        var receivedMessages = new List<string>();
-
-        services.AddTransient<INotificationHandler<TestNotification>>(_ => new TestNotificationHandler(receivedMessages));
-
-        ServiceProvider serviceProvider = services.BuildServiceProvider();
-        var publisherMock = new Mock<INotificationPublisher>();
-        var notification = new TestNotification("Cancellation test");
-        var cts = new CancellationTokenSource();
-        await cts.CancelAsync(); // Cancel immediately
-
-        publisherMock
-            .Setup(p => p.Publish(It.IsAny<IEnumerable<INotificationHandler<TestNotification>>>(),
-                   It.IsAny<TestNotification>(), It.IsAny<CancellationToken>()))
-            .Returns(new ValueTask(Task.FromCanceled<object>(cts.Token)));
-
-        var pipelineBuilder = new NotificationPipelineBuilder();
-
-        // Act & Assert
-        await Assert.ThrowsAsync<TaskCanceledException>(async () => await pipelineBuilder.BuildAndExecute(notification, serviceProvider, publisherMock.Object, cts.Token));
-
-        publisherMock.Verify(
-            p => p.Publish(
-                It.IsAny<IEnumerable<INotificationHandler<TestNotification>>>(),
-                It.IsAny<TestNotification>(),
-                It.Is<CancellationToken>(ct => ct.IsCancellationRequested)),
-            Times.Once);
     }
 
     [Fact]

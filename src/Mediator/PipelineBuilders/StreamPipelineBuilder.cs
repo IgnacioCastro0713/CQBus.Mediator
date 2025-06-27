@@ -15,7 +15,7 @@ public interface IStreamPipelineBuilder
         where TRequest : IStreamRequest<TResponse>;
 }
 
-internal class StreamPipelineBuilder : IStreamPipelineBuilder
+internal sealed class StreamPipelineBuilder : IStreamPipelineBuilder
 {
     public async IAsyncEnumerable<TResponse> BuildAndExecute<TRequest, TResponse>(
         TRequest request,
@@ -24,19 +24,51 @@ internal class StreamPipelineBuilder : IStreamPipelineBuilder
         where TRequest : IStreamRequest<TResponse>
     {
         IStreamRequestHandler<TRequest, TResponse> handler = services.GetRequiredService<IStreamRequestHandler<TRequest, TResponse>>();
-        IStreamPipelineBehavior<TRequest, TResponse>[] behaviors = services.GetServices<IStreamPipelineBehavior<TRequest, TResponse>>().ToArray();
-        StreamHandlerDelegate<TResponse> pipeline = ct => handler.Handle(request, ct);
+        IEnumerable<IStreamPipelineBehavior<TRequest, TResponse>> behaviorsEnumerable = services.GetServices<IStreamPipelineBehavior<TRequest, TResponse>>();
 
-        for (int i = behaviors.Length - 1; i >= 0; i--)
+        using IEnumerator<IStreamPipelineBehavior<TRequest, TResponse>> behaviorEnumerator = behaviorsEnumerable.GetEnumerator();
+
+        if (!behaviorEnumerator.MoveNext())
         {
-            IStreamPipelineBehavior<TRequest, TResponse> behavior = behaviors[i];
-            StreamHandlerDelegate<TResponse> next = pipeline;
-            pipeline = ct => behavior.Handle(request, _ => next(ct), ct);
+            await foreach (TResponse item in handler.Handle(request, cancellationToken).ConfigureAwait(false))
+            {
+                yield return item;
+            }
+            yield break;
         }
 
-        IAsyncEnumerable<TResponse> result = pipeline(cancellationToken);
+        IStreamPipelineBehavior<TRequest, TResponse> firstBehavior = behaviorEnumerator.Current;
 
-        await foreach (TResponse item in result.WithCancellation(cancellationToken))
+        if (!behaviorEnumerator.MoveNext())
+        {
+            await foreach (TResponse item in firstBehavior.Handle(request, ct => handler.Handle(request, ct), cancellationToken).ConfigureAwait(false))
+            {
+                yield return item;
+            }
+            yield break;
+        }
+
+        List<IStreamPipelineBehavior<TRequest, TResponse>> behaviorList =
+        [
+            firstBehavior,
+            behaviorEnumerator.Current
+        ];
+
+        while (behaviorEnumerator.MoveNext())
+        {
+            behaviorList.Add(behaviorEnumerator.Current);
+        }
+
+        StreamHandlerDelegate<TResponse> pipeline = ct => handler.Handle(request, ct);
+
+        for (int i = behaviorList.Count - 1; i >= 0; i--)
+        {
+            IStreamPipelineBehavior<TRequest, TResponse> currentBehavior = behaviorList[i];
+            StreamHandlerDelegate<TResponse> next = pipeline;
+            pipeline = ct => currentBehavior.Handle(request, _ => next(ct), ct);
+        }
+
+        await foreach (TResponse item in pipeline(cancellationToken).ConfigureAwait(false))
         {
             yield return item;
         }

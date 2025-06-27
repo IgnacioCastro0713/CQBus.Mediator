@@ -1,8 +1,6 @@
 using API;
-using API.Behaviors;
 using CQBus.Mediator;
 using CQBus.Mediator.NotificationPublishers;
-using CQBus.Mediator.Pipelines;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
@@ -16,11 +14,11 @@ builder.Services.AddMediator(cfg =>
 {
     cfg.RegisterServicesFromAssembly(typeof(Program).Assembly);
 
-    cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(UnhandledExceptionBehavior<,>));
-    cfg.AddOpenBehavior(typeof(LoggingBehavior<,>));
-
-    cfg.AddStreamBehavior(typeof(IStreamPipelineBehavior<,>), typeof(StreamUnhandledExceptionBehavior<,>));
-    cfg.AddOpenStreamBehavior(typeof(StreamLoggingBehavior<,>));
+    //cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(UnhandledExceptionBehavior<,>));
+    //cfg.AddOpenBehavior(typeof(LoggingBehavior<,>));
+    //
+    //cfg.AddStreamBehavior(typeof(IStreamPipelineBehavior<,>), typeof(StreamUnhandledExceptionBehavior<,>));
+    //cfg.AddOpenStreamBehavior(typeof(StreamLoggingBehavior<,>));
 
     cfg.PublisherStrategyType = typeof(TaskWhenAllPublisher);
 });
