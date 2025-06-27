@@ -43,7 +43,7 @@ jobs:
     - name: Pack project
       run: dotnet pack src/Mediator/Mediator.csproj --configuration Release --no-build -o ./nupkgs /p:PackageVersion=${{ steps.get_version.outputs.version }}
 
-    - name: Push to NuGet
+    #- name: Push to NuGet
       #run: dotnet nuget push "./nupkgs/*.nupkg" --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json
 
     - name: Create GitHub Release
