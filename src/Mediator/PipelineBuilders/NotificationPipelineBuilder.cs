@@ -25,21 +25,14 @@ internal sealed class NotificationPipelineBuilder : INotificationPipelineBuilder
         where TNotification : INotification
     {
         using IEnumerator<INotificationHandler<TNotification>> handlersEnumerator = services.GetServices<INotificationHandler<TNotification>>().GetEnumerator();
+
         if (!handlersEnumerator.MoveNext())
         {
             return default;
         }
 
-        INotificationHandler<TNotification> firstHandler = handlersEnumerator.Current;
-
-        if (!handlersEnumerator.MoveNext())
-        {
-            return firstHandler.Handle(notification, cancellationToken);
-        }
-
         List<INotificationHandler<TNotification>> handlersList =
         [
-            firstHandler,
             handlersEnumerator.Current
         ];
 

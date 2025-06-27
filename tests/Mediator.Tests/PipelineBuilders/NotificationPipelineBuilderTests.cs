@@ -70,6 +70,18 @@ public class NotificationPipelineBuilderTests
         var notification = new TestNotification("Single handler test");
         var pipelineBuilder = new NotificationPipelineBuilder();
 
+        // Setup publisher to actually execute handlers
+        publisherMock
+            .Setup(p => p.Publish(It.IsAny<IEnumerable<INotificationHandler<TestNotification>>>(),
+                It.IsAny<TestNotification>(), It.IsAny<CancellationToken>()))
+            .Returns(async (IEnumerable<INotificationHandler<TestNotification>> handlers, TestNotification n, CancellationToken ct) =>
+            {
+                foreach (INotificationHandler<TestNotification> handler in handlers)
+                {
+                    await handler.Handle(n, ct);
+                }
+            });
+
         // Act
         await pipelineBuilder.BuildAndExecute(notification, serviceProvider, publisherMock.Object, CancellationToken.None);
 
@@ -78,10 +90,10 @@ public class NotificationPipelineBuilderTests
         Assert.Equal("Handler received: Single handler test", receivedMessages[0]);
         publisherMock.Verify(
             p => p.Publish(
-                It.IsAny<IEnumerable<INotificationHandler<TestNotification>>>(),
-                It.IsAny<TestNotification>(),
+                It.Is<IEnumerable<INotificationHandler<TestNotification>>>(h => h.Count() == 1),
+                It.Is<TestNotification>(n => n.Message == "Single handler test"),
                 It.IsAny<CancellationToken>()),
-            Times.Never);
+            Times.Once);
     }
 
     [Fact]

@@ -37,20 +37,8 @@ internal sealed class StreamPipelineBuilder : IStreamPipelineBuilder
             yield break;
         }
 
-        IStreamPipelineBehavior<TRequest, TResponse> firstBehavior = behaviorEnumerator.Current;
-
-        if (!behaviorEnumerator.MoveNext())
-        {
-            await foreach (TResponse item in firstBehavior.Handle(request, ct => handler.Handle(request, ct), cancellationToken).ConfigureAwait(false))
-            {
-                yield return item;
-            }
-            yield break;
-        }
-
         List<IStreamPipelineBehavior<TRequest, TResponse>> behaviorList =
         [
-            firstBehavior,
             behaviorEnumerator.Current
         ];
 

@@ -32,16 +32,8 @@ internal sealed class RequestPipelineBuilder : IRequestPipelineBuilder
             return handler.Handle(request, cancellationToken);
         }
 
-        IPipelineBehavior<TRequest, TResponse> firstBehavior = behaviorEnumerator.Current;
-
-        if (!behaviorEnumerator.MoveNext())
-        {
-            return firstBehavior.Handle(request, ct => handler.Handle(request, ct), cancellationToken);
-        }
-
         List<IPipelineBehavior<TRequest, TResponse>> behaviorsList =
         [
-            firstBehavior,
             behaviorEnumerator.Current
         ];
 
