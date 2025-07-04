@@ -48,7 +48,8 @@ public sealed class MediatorConfiguration
 
         if (implementedBehaviorInterfaces.Count == 0)
         {
-            throw new InvalidOperationException($"{behaviorType.Name} must implement {typeof(IPipelineBehavior<,>).FullName}");
+            throw new InvalidOperationException(
+                $"{behaviorType.Name} must implement {typeof(IPipelineBehavior<,>).FullName}");
         }
 
         foreach (Type behaviorInterface in implementedBehaviorInterfaces)
@@ -87,12 +88,14 @@ public sealed class MediatorConfiguration
 
         if (implementedOpenBehaviorInterfaces.Count == 0)
         {
-            throw new InvalidOperationException($"{openBehaviorType.Name} must implement {typeof(IStreamPipelineBehavior<,>).FullName}");
+            throw new InvalidOperationException(
+                $"{openBehaviorType.Name} must implement {typeof(IStreamPipelineBehavior<,>).FullName}");
         }
 
         foreach (Type openBehaviorInterface in implementedOpenBehaviorInterfaces)
         {
-            StreamBehaviorsToRegister.Add(new ServiceDescriptor(openBehaviorInterface, openBehaviorType, serviceLifetime));
+            StreamBehaviorsToRegister.Add(new ServiceDescriptor(openBehaviorInterface, openBehaviorType,
+                serviceLifetime));
         }
 
         return this;

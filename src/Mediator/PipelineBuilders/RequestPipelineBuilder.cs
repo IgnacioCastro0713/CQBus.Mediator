@@ -22,10 +22,13 @@ internal sealed class RequestPipelineBuilder : IRequestPipelineBuilder
         CancellationToken cancellationToken)
         where TRequest : IRequest<TResponse>
     {
-        IRequestHandler<TRequest, TResponse> handler = services.GetRequiredService<IRequestHandler<TRequest, TResponse>>();
-        IEnumerable<IPipelineBehavior<TRequest, TResponse>> behaviorsEnumerable = services.GetServices<IPipelineBehavior<TRequest, TResponse>>();
+        IRequestHandler<TRequest, TResponse> handler =
+            services.GetRequiredService<IRequestHandler<TRequest, TResponse>>();
+        IEnumerable<IPipelineBehavior<TRequest, TResponse>> behaviorsEnumerable =
+            services.GetServices<IPipelineBehavior<TRequest, TResponse>>();
 
-        using IEnumerator<IPipelineBehavior<TRequest, TResponse>> behaviorEnumerator = behaviorsEnumerable.GetEnumerator();
+        using IEnumerator<IPipelineBehavior<TRequest, TResponse>> behaviorEnumerator =
+            behaviorsEnumerable.GetEnumerator();
 
         if (!behaviorEnumerator.MoveNext())
         {

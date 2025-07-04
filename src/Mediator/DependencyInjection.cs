@@ -38,9 +38,12 @@ public static class DependencyInjection
 
     private static void TryAddMediator(this IServiceCollection services, MediatorConfiguration configurationOptions)
     {
-        services.TryAdd(ServiceDescriptor.Describe(typeof(IMediator), typeof(Mediator), configurationOptions.ServiceLifetime));
-        services.TryAdd(ServiceDescriptor.Describe(typeof(ISender), sp => sp.GetRequiredService<IMediator>(), configurationOptions.ServiceLifetime));
-        services.TryAdd(ServiceDescriptor.Describe(typeof(IPublisher), sp => sp.GetRequiredService<IMediator>(), configurationOptions.ServiceLifetime));
+        services.TryAdd(ServiceDescriptor.Describe(typeof(IMediator), typeof(Mediator),
+            configurationOptions.ServiceLifetime));
+        services.TryAdd(ServiceDescriptor.Describe(typeof(ISender), sp => sp.GetRequiredService<IMediator>(),
+            configurationOptions.ServiceLifetime));
+        services.TryAdd(ServiceDescriptor.Describe(typeof(IPublisher), sp => sp.GetRequiredService<IMediator>(),
+            configurationOptions.ServiceLifetime));
     }
 
     private static void AddPipelinesBuilders(this IServiceCollection services)
@@ -57,7 +60,8 @@ public static class DependencyInjection
     {
         if (assembliesToRegister == null || !assembliesToRegister.Any())
         {
-            throw new ArgumentNullException(nameof(assembliesToRegister), "At least one assembly must be provided for handler registration.");
+            throw new ArgumentNullException(nameof(assembliesToRegister),
+                "At least one assembly must be provided for handler registration.");
         }
 
         var handlers = assembliesToRegister
@@ -97,7 +101,8 @@ public static class DependencyInjection
     {
         if (!typeof(INotificationPublisher).IsAssignableFrom(publisherStrategyType))
         {
-            throw new InvalidOperationException($"{publisherStrategyType.Name} must implement {nameof(INotificationPublisher)} interface.");
+            throw new InvalidOperationException(
+                $"{publisherStrategyType.Name} must implement {nameof(INotificationPublisher)} interface.");
         }
 
         services.TryAdd(ServiceDescriptor.Describe(

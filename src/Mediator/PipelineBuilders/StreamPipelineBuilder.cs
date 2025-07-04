@@ -23,10 +23,13 @@ internal sealed class StreamPipelineBuilder : IStreamPipelineBuilder
         [EnumeratorCancellation] CancellationToken cancellationToken)
         where TRequest : IStreamRequest<TResponse>
     {
-        IStreamRequestHandler<TRequest, TResponse> handler = services.GetRequiredService<IStreamRequestHandler<TRequest, TResponse>>();
-        IEnumerable<IStreamPipelineBehavior<TRequest, TResponse>> behaviorsEnumerable = services.GetServices<IStreamPipelineBehavior<TRequest, TResponse>>();
+        IStreamRequestHandler<TRequest, TResponse> handler =
+            services.GetRequiredService<IStreamRequestHandler<TRequest, TResponse>>();
+        IEnumerable<IStreamPipelineBehavior<TRequest, TResponse>> behaviorsEnumerable =
+            services.GetServices<IStreamPipelineBehavior<TRequest, TResponse>>();
 
-        using IEnumerator<IStreamPipelineBehavior<TRequest, TResponse>> behaviorEnumerator = behaviorsEnumerable.GetEnumerator();
+        using IEnumerator<IStreamPipelineBehavior<TRequest, TResponse>> behaviorEnumerator =
+            behaviorsEnumerable.GetEnumerator();
 
         if (!behaviorEnumerator.MoveNext())
         {
@@ -34,6 +37,7 @@ internal sealed class StreamPipelineBuilder : IStreamPipelineBuilder
             {
                 yield return item;
             }
+
             yield break;
         }
 

@@ -11,7 +11,8 @@ public interface INotificationHandler<in TNotification>
 public abstract class NotificationHandler<TNotification> : INotificationHandler<TNotification>
     where TNotification : INotification
 {
-    ValueTask INotificationHandler<TNotification>.Handle(TNotification notification, CancellationToken cancellationToken)
+    ValueTask INotificationHandler<TNotification>.Handle(TNotification notification,
+        CancellationToken cancellationToken)
     {
         Handle(notification);
 
@@ -20,4 +21,3 @@ public abstract class NotificationHandler<TNotification> : INotificationHandler<
 
     protected abstract void Handle(TNotification notification);
 }
-

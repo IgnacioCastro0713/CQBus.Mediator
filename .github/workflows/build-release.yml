@@ -25,16 +25,22 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: '8.x'
+        dotnet-version: '9.x'
+        
+    - name: Clean output
+      run: rm -rf src/Specification/bin/Release/*
+          
+    - name: Clean
+      run: dotnet build src/Specification/Specification.csproj
         
     - name: Restore dependencies
-      run: dotnet restore src/Mediator/Mediator.csproj
+      run: dotnet restore
 
     - name: Build
-      run: dotnet build src/Mediator/Mediator.csproj --configuration Release --no-restore
+      run: dotnet build src/Mediator/Mediator.csproj --configuration Release --no-restore --framework net9.0
       
     - name: Test
-      run: dotnet test tests/Mediator.Tests/Mediator.Tests.csproj --configuration Debug --framework net8.0
+      run: dotnet test tests/Mediator.Tests/Mediator.Tests.csproj --configuration Release --no-restore --framework net9.0
 
     - name: Extract version
       id: get_version

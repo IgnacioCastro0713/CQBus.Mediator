@@ -1,23 +1,26 @@
 <Project>
-  <PropertyGroup>
-    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
-  </PropertyGroup>
-  <ItemGroup>
-  </ItemGroup>
-  <ItemGroup>
-    <PackageVersion Include="BenchmarkDotNet" Version="0.15.2" />
-    <PackageVersion Include="BenchmarkDotNet.Diagnostics.Windows" Version="0.15.2" />
-    <PackageVersion Include="CQBus.Mediator" Version="1.0.1" />
-    <PackageVersion Include="IsExternalInit" Version="1.0.3" />
-    <PackageVersion Include="MediatR" Version="12.5.0" />
-    <PackageVersion Include="Microsoft.CSharp" Version="4.7.0" />
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
-    <PackageVersion Include="Moq" Version="4.20.72" />
-    <PackageVersion Include="Swashbuckle.AspNetCore" Version="6.6.2" />
-    <PackageVersion Include="coverlet.collector" Version="6.0.0" />
-    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
-    <PackageVersion Include="System.Linq.Async" Version="6.0.3" />
-    <PackageVersion Include="xunit" Version="2.5.3" />
-    <PackageVersion Include="xunit.runner.visualstudio" Version="2.5.3" />
-  </ItemGroup>
+	<PropertyGroup>
+		<ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+	</PropertyGroup>
+	<ItemGroup Label="Package dependencies NET8" Condition=" '$(TargetFramework)' == 'net8.0' ">
+		<PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
+	</ItemGroup>
+	<ItemGroup Label="Package dependencies NET9" Condition=" '$(TargetFramework)' == 'net9.0' ">
+		<PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="9.0.6" />
+	</ItemGroup>
+	<ItemGroup>
+		<PackageVersion Include="BenchmarkDotNet" Version="0.15.2" />
+		<PackageVersion Include="BenchmarkDotNet.Diagnostics.Windows" Version="0.15.2" />
+		<PackageVersion Include="CQBus.Mediator" Version="1.0.1" />
+		<PackageVersion Include="IsExternalInit" Version="1.0.3" />
+		<PackageVersion Include="MediatR" Version="12.5.0" />
+		<PackageVersion Include="Microsoft.CSharp" Version="4.7.0" />
+		<PackageVersion Include="Moq" Version="4.20.72" />
+		<PackageVersion Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+		<PackageVersion Include="coverlet.collector" Version="6.0.0" />
+		<PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+		<PackageVersion Include="System.Linq.Async" Version="6.0.3" />
+		<PackageVersion Include="xunit" Version="2.5.3" />
+		<PackageVersion Include="xunit.runner.visualstudio" Version="2.5.3" />
+	</ItemGroup>
 </Project>
