@@ -31,7 +31,7 @@ jobs:
       run: rm -rf src/Specification/bin/Release/*
           
     - name: Clean
-      run: dotnet build src/Specification/Specification.csproj
+      run: dotnet build src/Mediator/Mediator.csproj
         
     - name: Restore dependencies
       run: dotnet restore
