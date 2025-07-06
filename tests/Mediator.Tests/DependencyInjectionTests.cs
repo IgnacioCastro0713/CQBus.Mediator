@@ -3,7 +3,6 @@ using CQBus.Mediator;
 using CQBus.Mediator.Handlers;
 using CQBus.Mediator.Messages;
 using CQBus.Mediator.NotificationPublishers;
-using CQBus.Mediator.PipelineBuilders;
 using CQBus.Mediator.Pipelines;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -76,7 +75,7 @@ public class DependencyInjectionTests
     public class TestPublisher : INotificationPublisher
     {
         public ValueTask Publish<TNotification>(
-            IEnumerable<INotificationHandler<TNotification>> handlers,
+            INotificationHandler<TNotification>[] handlers,
             TNotification notification,
             CancellationToken cancellationToken) where TNotification : INotification
         {
@@ -102,11 +101,6 @@ public class DependencyInjectionTests
         Assert.NotNull(serviceProvider.GetService<IMediator>());
         Assert.NotNull(serviceProvider.GetService<ISender>());
         Assert.NotNull(serviceProvider.GetService<IPublisher>());
-
-        // Pipeline builders
-        Assert.NotNull(serviceProvider.GetService<IRequestPipelineBuilder>());
-        Assert.NotNull(serviceProvider.GetService<INotificationPipelineBuilder>());
-        Assert.NotNull(serviceProvider.GetService<IStreamPipelineBuilder>());
 
         // Handler registrations
         Assert.NotNull(serviceProvider.GetService<IRequestHandler<TestRequest, string>>());

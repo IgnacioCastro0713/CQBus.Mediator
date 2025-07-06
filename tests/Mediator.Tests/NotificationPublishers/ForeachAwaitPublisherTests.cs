@@ -36,7 +36,7 @@ public class ForeachAwaitPublisherTests
         var publisher = new ForeachAwaitPublisher();
 
         // Act
-        await publisher.Publish(handlers, notification, CancellationToken.None);
+        await publisher.Publish(handlers.ToArray(), notification, CancellationToken.None);
 
         // Assert
         handler1Mock.Verify(h => h.Handle(notification, It.IsAny<CancellationToken>()), Times.Once);
@@ -53,7 +53,7 @@ public class ForeachAwaitPublisherTests
         var publisher = new ForeachAwaitPublisher();
 
         // Act & Assert (no exception should be thrown)
-        await publisher.Publish(handlers, notification, CancellationToken.None);
+        await publisher.Publish(handlers.ToArray(), notification, CancellationToken.None);
     }
 
     [Fact]
@@ -77,7 +77,7 @@ public class ForeachAwaitPublisherTests
         var publisher = new ForeachAwaitPublisher();
 
         // Act
-        await publisher.Publish(handlers, notification, token);
+        await publisher.Publish(handlers.ToArray(), notification, token);
 
         // Assert
         handlerMock.Verify(h => h.Handle(notification, token), Times.Once);
@@ -113,7 +113,7 @@ public class ForeachAwaitPublisherTests
         var publisher = new ForeachAwaitPublisher();
 
         // Act
-        await publisher.Publish(handlers, notification, CancellationToken.None);
+        await publisher.Publish(handlers.ToArray(), notification, CancellationToken.None);
 
         // Assert
         Assert.Equal(new[] { 1, 2, 3 }, executionOrder);
@@ -156,7 +156,7 @@ public class ForeachAwaitPublisherTests
         var publisher = new ForeachAwaitPublisher();
 
         // Act
-        await publisher.Publish(handlers, notification, CancellationToken.None);
+        await publisher.Publish(handlers.ToArray(), notification, CancellationToken.None);
 
         // Assert
         Assert.Equal(3, executionTimes.Count);
@@ -192,7 +192,7 @@ public class ForeachAwaitPublisherTests
 
         // Act & Assert
         InvalidOperationException thrownException = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await publisher.Publish(handlers, notification, CancellationToken.None));
+            await publisher.Publish(handlers.ToArray(), notification, CancellationToken.None));
 
         Assert.Same(exception, thrownException);
     }
@@ -233,7 +233,7 @@ public class ForeachAwaitPublisherTests
 
         // Act & Assert
         await Assert.ThrowsAsync<OperationCanceledException>(async () =>
-            await publisher.Publish(handlers, notification, cts.Token));
+            await publisher.Publish(handlers.ToArray(), notification, cts.Token));
 
         // Verify only first handler was executed
         Assert.Single(handlerExecuted);

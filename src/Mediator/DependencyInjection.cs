@@ -2,7 +2,6 @@
 using CQBus.Mediator.Configurations;
 using CQBus.Mediator.Handlers;
 using CQBus.Mediator.NotificationPublishers;
-using CQBus.Mediator.PipelineBuilders;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -25,8 +24,6 @@ public static class DependencyInjection
 
         services.TryAddMediator(configurationOptions);
 
-        services.AddPipelinesBuilders();
-
         services.TryAddHandlers(configurationOptions.AssembliesToRegister, configurationOptions.ServiceLifetime);
 
         services.TryAddPublisher(configurationOptions.PublisherStrategyType, configurationOptions.ServiceLifetime);
@@ -38,19 +35,18 @@ public static class DependencyInjection
 
     private static void TryAddMediator(this IServiceCollection services, MediatorConfiguration configurationOptions)
     {
-        services.TryAdd(ServiceDescriptor.Describe(typeof(IMediator), typeof(Mediator),
+        services.TryAdd(ServiceDescriptor.Describe(
+            typeof(IMediator),
+            typeof(Mediator),
             configurationOptions.ServiceLifetime));
-        services.TryAdd(ServiceDescriptor.Describe(typeof(ISender), sp => sp.GetRequiredService<IMediator>(),
+        services.TryAdd(ServiceDescriptor.Describe(
+            typeof(ISender),
+            sp => sp.GetRequiredService<IMediator>(),
             configurationOptions.ServiceLifetime));
-        services.TryAdd(ServiceDescriptor.Describe(typeof(IPublisher), sp => sp.GetRequiredService<IMediator>(),
+        services.TryAdd(ServiceDescriptor.Describe(
+            typeof(IPublisher),
+            sp => sp.GetRequiredService<IMediator>(),
             configurationOptions.ServiceLifetime));
-    }
-
-    private static void AddPipelinesBuilders(this IServiceCollection services)
-    {
-        services.AddSingleton<IRequestPipelineBuilder, RequestPipelineBuilder>();
-        services.AddSingleton<INotificationPipelineBuilder, NotificationPipelineBuilder>();
-        services.AddSingleton<IStreamPipelineBuilder, StreamPipelineBuilder>();
     }
 
     private static void TryAddHandlers(
@@ -60,8 +56,7 @@ public static class DependencyInjection
     {
         if (assembliesToRegister == null || !assembliesToRegister.Any())
         {
-            throw new ArgumentNullException(nameof(assembliesToRegister),
-                "At least one assembly must be provided for handler registration.");
+            throw new ArgumentNullException(nameof(assembliesToRegister), "At least one assembly must be provided for handler registration.");
         }
 
         var handlers = assembliesToRegister
@@ -101,8 +96,7 @@ public static class DependencyInjection
     {
         if (!typeof(INotificationPublisher).IsAssignableFrom(publisherStrategyType))
         {
-            throw new InvalidOperationException(
-                $"{publisherStrategyType.Name} must implement {nameof(INotificationPublisher)} interface.");
+            throw new InvalidOperationException($"{publisherStrategyType.Name} must implement {nameof(INotificationPublisher)} interface.");
         }
 
         services.TryAdd(ServiceDescriptor.Describe(

@@ -6,12 +6,12 @@ namespace CQBus.Mediator.NotificationPublishers;
 public class TaskWhenAllPublisher : INotificationPublisher
 {
     public ValueTask Publish<TNotification>(
-        IEnumerable<INotificationHandler<TNotification>> handlers,
+        INotificationHandler<TNotification>[] handlers,
         TNotification notification,
         CancellationToken cancellationToken)
         where TNotification : INotification
     {
-        IEnumerable<Task> tasks = handlers.Select(handler => handler.Handle(notification, cancellationToken).AsTask());
+        Task[] tasks = handlers.Select(handler => handler.Handle(notification, cancellationToken).AsTask()).ToArray();
 
         var allTasks = Task.WhenAll(tasks);
 

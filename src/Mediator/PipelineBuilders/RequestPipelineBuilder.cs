@@ -16,40 +16,21 @@ public interface IRequestPipelineBuilder
 
 internal sealed class RequestPipelineBuilder : IRequestPipelineBuilder
 {
+    public static RequestPipelineBuilder Instance { get; } = new();
+
     public ValueTask<TResponse> BuildAndExecute<TRequest, TResponse>(
         TRequest request,
         IServiceProvider services,
         CancellationToken cancellationToken)
         where TRequest : IRequest<TResponse>
     {
-        IRequestHandler<TRequest, TResponse> handler =
-            services.GetRequiredService<IRequestHandler<TRequest, TResponse>>();
-        IEnumerable<IPipelineBehavior<TRequest, TResponse>> behaviorsEnumerable =
-            services.GetServices<IPipelineBehavior<TRequest, TResponse>>();
-
-        using IEnumerator<IPipelineBehavior<TRequest, TResponse>> behaviorEnumerator =
-            behaviorsEnumerable.GetEnumerator();
-
-        if (!behaviorEnumerator.MoveNext())
-        {
-            return handler.Handle(request, cancellationToken);
-        }
-
-        List<IPipelineBehavior<TRequest, TResponse>> behaviorsList =
-        [
-            behaviorEnumerator.Current
-        ];
-
-        while (behaviorEnumerator.MoveNext())
-        {
-            behaviorsList.Add(behaviorEnumerator.Current);
-        }
-
+        IRequestHandler<TRequest, TResponse> handler = services.GetRequiredService<IRequestHandler<TRequest, TResponse>>();
+        IPipelineBehavior<TRequest, TResponse>[] behaviors = services.GetServices<IPipelineBehavior<TRequest, TResponse>>().ToArray();
         RequestHandlerDelegate<TResponse> pipeline = ct => handler.Handle(request, ct);
 
-        for (int i = behaviorsList.Count - 1; i >= 0; i--)
+        for (int i = behaviors.Length - 1; i >= 0; i--)
         {
-            IPipelineBehavior<TRequest, TResponse> currentBehavior = behaviorsList[i];
+            IPipelineBehavior<TRequest, TResponse> currentBehavior = behaviors[i];
             RequestHandlerDelegate<TResponse> next = pipeline;
             pipeline = ct => currentBehavior.Handle(request, next, ct);
         }

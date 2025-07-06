@@ -17,45 +17,21 @@ public interface IStreamPipelineBuilder
 
 internal sealed class StreamPipelineBuilder : IStreamPipelineBuilder
 {
+    public static StreamPipelineBuilder Instance { get; } = new();
+
     public async IAsyncEnumerable<TResponse> BuildAndExecute<TRequest, TResponse>(
         TRequest request,
         IServiceProvider services,
         [EnumeratorCancellation] CancellationToken cancellationToken)
         where TRequest : IStreamRequest<TResponse>
     {
-        IStreamRequestHandler<TRequest, TResponse> handler =
-            services.GetRequiredService<IStreamRequestHandler<TRequest, TResponse>>();
-        IEnumerable<IStreamPipelineBehavior<TRequest, TResponse>> behaviorsEnumerable =
-            services.GetServices<IStreamPipelineBehavior<TRequest, TResponse>>();
-
-        using IEnumerator<IStreamPipelineBehavior<TRequest, TResponse>> behaviorEnumerator =
-            behaviorsEnumerable.GetEnumerator();
-
-        if (!behaviorEnumerator.MoveNext())
-        {
-            await foreach (TResponse item in handler.Handle(request, cancellationToken).ConfigureAwait(false))
-            {
-                yield return item;
-            }
-
-            yield break;
-        }
-
-        List<IStreamPipelineBehavior<TRequest, TResponse>> behaviorList =
-        [
-            behaviorEnumerator.Current
-        ];
-
-        while (behaviorEnumerator.MoveNext())
-        {
-            behaviorList.Add(behaviorEnumerator.Current);
-        }
-
+        IStreamRequestHandler<TRequest, TResponse> handler = services.GetRequiredService<IStreamRequestHandler<TRequest, TResponse>>();
+        IStreamPipelineBehavior<TRequest, TResponse>[] behaviors = services.GetServices<IStreamPipelineBehavior<TRequest, TResponse>>().ToArray();
         StreamHandlerDelegate<TResponse> pipeline = ct => handler.Handle(request, ct);
 
-        for (int i = behaviorList.Count - 1; i >= 0; i--)
+        for (int i = behaviors.Length - 1; i >= 0; i--)
         {
-            IStreamPipelineBehavior<TRequest, TResponse> currentBehavior = behaviorList[i];
+            IStreamPipelineBehavior<TRequest, TResponse> currentBehavior = behaviors[i];
             StreamHandlerDelegate<TResponse> next = pipeline;
             pipeline = ct => currentBehavior.Handle(request, _ => next(ct), ct);
         }

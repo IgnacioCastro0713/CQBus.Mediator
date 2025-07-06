@@ -38,7 +38,7 @@ public class TaskWhenAllPublisherTests
         var publisher = new TaskWhenAllPublisher();
 
         // Act
-        await publisher.Publish(handlers, notification, CancellationToken.None);
+        await publisher.Publish(handlers.ToArray(), notification, CancellationToken.None);
 
         // Assert
         handler1Mock.Verify(h => h.Handle(notification, It.IsAny<CancellationToken>()), Times.Once);
@@ -55,7 +55,7 @@ public class TaskWhenAllPublisherTests
         var publisher = new TaskWhenAllPublisher();
 
         // Act & Assert (no exception should be thrown)
-        await publisher.Publish(handlers, notification, CancellationToken.None);
+        await publisher.Publish(handlers.ToArray(), notification, CancellationToken.None);
     }
 
     [Fact]
@@ -79,7 +79,7 @@ public class TaskWhenAllPublisherTests
         var publisher = new TaskWhenAllPublisher();
 
         // Act
-        await publisher.Publish(handlers, notification, token);
+        await publisher.Publish(handlers.ToArray(), notification, token);
 
         // Assert
         handlerMock.Verify(h => h.Handle(notification, token), Times.Once);
@@ -105,7 +105,7 @@ public class TaskWhenAllPublisherTests
 
         // Act & Assert
         InvalidOperationException thrownException = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await publisher.Publish(handlers, notification, CancellationToken.None));
+            await publisher.Publish(handlers.ToArray(), notification, CancellationToken.None));
 
         Assert.Same(exception, thrownException);
     }
@@ -142,7 +142,7 @@ public class TaskWhenAllPublisherTests
         // Act & Assert
         // When awaiting Task.WhenAll, the first exception will be thrown directly
         Exception thrownException = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await publisher.Publish(handlers, notification, CancellationToken.None));
+            await publisher.Publish(handlers.ToArray(), notification, CancellationToken.None));
 
         // The exception could be either of our exceptions since they run concurrently
         Assert.True(thrownException == exception1 || thrownException == exception2);
@@ -173,7 +173,7 @@ public class TaskWhenAllPublisherTests
         var publisher = new TaskWhenAllPublisher();
 
         // Act
-        ValueTask publishTask = publisher.Publish(handlers, notification, CancellationToken.None);
+        ValueTask publishTask = publisher.Publish(handlers.ToArray(), notification, CancellationToken.None);
         Task task = publishTask.AsTask();
 
         // Wait for the task to complete without blocking
@@ -234,7 +234,7 @@ public class TaskWhenAllPublisherTests
 
         // Act
         var stopwatch = Stopwatch.StartNew();
-        await publisher.Publish(handlers, notification, CancellationToken.None);
+        await publisher.Publish(handlers.ToArray(), notification, CancellationToken.None);
         stopwatch.Stop();
 
         // Assert
@@ -300,7 +300,7 @@ public class TaskWhenAllPublisherTests
 
         // Act & Assert
         await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
-            await publisher.Publish(handlers, notification, cts.Token));
+            await publisher.Publish(handlers.ToArray(), notification, cts.Token));
 
         // Only the first handler should have completed successfully
         Assert.Single(completedHandlers);
