@@ -102,7 +102,7 @@ public class StreamPipelineBuilderTests
 
         // Act
         var results = new List<string>();
-        await foreach (string item in pipelineBuilder.BuildAndExecute<TestStreamRequest, string>(
+        await foreach (string item in pipelineBuilder.Execute<TestStreamRequest, string>(
             request,
             serviceProviderMock.Object,
             CancellationToken.None))
@@ -151,7 +151,7 @@ public class StreamPipelineBuilderTests
 
         // Act
         var results = new List<string>();
-        await foreach (string item in pipelineBuilder.BuildAndExecute<TestStreamRequest, string>(
+        await foreach (string item in pipelineBuilder.Execute<TestStreamRequest, string>(
             request,
             serviceProviderMock.Object,
             CancellationToken.None))
@@ -197,7 +197,7 @@ public class StreamPipelineBuilderTests
 
         // Act
         var results = new List<string>();
-        await foreach (string item in pipelineBuilder.BuildAndExecute<TestStreamRequest, string>(
+        await foreach (string item in pipelineBuilder.Execute<TestStreamRequest, string>(
             request,
             serviceProviderMock.Object,
             cancellationToken))
@@ -238,7 +238,7 @@ public class StreamPipelineBuilderTests
         var results = new List<string>();
         Exception? exception = await Record.ExceptionAsync(async () =>
         {
-            await foreach (string item in pipelineBuilder.BuildAndExecute<TestStreamRequest, string>(
+            await foreach (string item in pipelineBuilder.Execute<TestStreamRequest, string>(
                 request,
                 serviceProviderMock.Object,
                 cts.Token))
@@ -274,7 +274,7 @@ public class StreamPipelineBuilderTests
         // Act & Assert
         InvalidOperationException exception = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
         {
-            await foreach (string _ in pipelineBuilder.BuildAndExecute<TestStreamRequest, string>(
+            await foreach (string _ in pipelineBuilder.Execute<TestStreamRequest, string>(
                 request,
                 serviceProviderMock.Object,
                 CancellationToken.None))
@@ -315,7 +315,7 @@ public class StreamPipelineBuilderTests
 
         // Act
         var results = new List<string>();
-        await foreach (string item in pipelineBuilder.BuildAndExecute<TestStreamRequest, string>(
+        await foreach (string item in pipelineBuilder.Execute<TestStreamRequest, string>(
             request,
             serviceProviderMock.Object,
             CancellationToken.None))

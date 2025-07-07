@@ -7,7 +7,7 @@ namespace CQBus.Mediator.PipelineBuilders;
 
 public interface INotificationPipelineBuilder
 {
-    ValueTask BuildAndExecute<TNotification>(
+    ValueTask Execute<TNotification>(
         TNotification notification,
         IServiceProvider services,
         INotificationPublisher publisher,
@@ -19,7 +19,7 @@ internal sealed class NotificationPipelineBuilder : INotificationPipelineBuilder
 {
     public static NotificationPipelineBuilder Instance { get; } = new();
 
-    public ValueTask BuildAndExecute<TNotification>(
+    public ValueTask Execute<TNotification>(
         TNotification notification,
         IServiceProvider services,
         INotificationPublisher publisher,

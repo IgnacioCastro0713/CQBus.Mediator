@@ -66,7 +66,7 @@ public class RequestPipelineBuilderTests
         var pipelineBuilder = new RequestPipelineBuilder();
 
         // Act
-        string response = await pipelineBuilder.BuildAndExecute<TestRequest, string>(
+        string response = await pipelineBuilder.Execute<TestRequest, string>(
             request,
             serviceProviderMock.Object,
             CancellationToken.None);
@@ -109,7 +109,7 @@ public class RequestPipelineBuilderTests
         var pipelineBuilder = new RequestPipelineBuilder();
 
         // Act
-        string response = await pipelineBuilder.BuildAndExecute<TestRequest, string>(
+        string response = await pipelineBuilder.Execute<TestRequest, string>(
             request,
             serviceProviderMock.Object,
             CancellationToken.None);
@@ -149,7 +149,7 @@ public class RequestPipelineBuilderTests
         var pipelineBuilder = new RequestPipelineBuilder();
 
         // Act
-        await pipelineBuilder.BuildAndExecute<TestRequest, string>(
+        await pipelineBuilder.Execute<TestRequest, string>(
             request,
             serviceProviderMock.Object,
             cancellationToken);
@@ -177,7 +177,7 @@ public class RequestPipelineBuilderTests
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await pipelineBuilder.BuildAndExecute<TestRequest, string>(
+            await pipelineBuilder.Execute<TestRequest, string>(
                 request,
                 serviceProviderMock.Object,
                 CancellationToken.None));

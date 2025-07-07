@@ -7,7 +7,7 @@ namespace CQBus.Mediator.PipelineBuilders;
 
 public interface IRequestPipelineBuilder
 {
-    ValueTask<TResponse> BuildAndExecute<TRequest, TResponse>(
+    ValueTask<TResponse> Execute<TRequest, TResponse>(
         TRequest request,
         IServiceProvider services,
         CancellationToken cancellationToken)
@@ -18,7 +18,7 @@ internal sealed class RequestPipelineBuilder : IRequestPipelineBuilder
 {
     public static RequestPipelineBuilder Instance { get; } = new();
 
-    public ValueTask<TResponse> BuildAndExecute<TRequest, TResponse>(
+    public ValueTask<TResponse> Execute<TRequest, TResponse>(
         TRequest request,
         IServiceProvider services,
         CancellationToken cancellationToken)

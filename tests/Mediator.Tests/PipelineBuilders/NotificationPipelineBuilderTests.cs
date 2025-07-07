@@ -43,7 +43,7 @@ public class NotificationPipelineBuilderTests
         NotificationPipelineBuilder pipelineBuilder = NotificationPipelineBuilder.Instance;
 
         // Act
-        ValueTask result = pipelineBuilder.BuildAndExecute(notification, serviceProvider, publisherMock.Object, CancellationToken.None);
+        ValueTask result = pipelineBuilder.Execute(notification, serviceProvider, publisherMock.Object, CancellationToken.None);
 
         // Assert
         Assert.Equal(default, result);
@@ -83,7 +83,7 @@ public class NotificationPipelineBuilderTests
             });
 
         // Act
-        await pipelineBuilder.BuildAndExecute(notification, serviceProvider, publisherMock.Object, CancellationToken.None);
+        await pipelineBuilder.Execute(notification, serviceProvider, publisherMock.Object, CancellationToken.None);
 
         // Assert
         Assert.Single(receivedMessages);
@@ -124,7 +124,7 @@ public class NotificationPipelineBuilderTests
         var pipelineBuilder = new NotificationPipelineBuilder();
 
         // Act
-        await pipelineBuilder.BuildAndExecute(notification, serviceProvider, publisherMock.Object, CancellationToken.None);
+        await pipelineBuilder.Execute(notification, serviceProvider, publisherMock.Object, CancellationToken.None);
 
         // Assert
         Assert.Equal(2, receivedMessages.Count);
@@ -150,7 +150,7 @@ public class NotificationPipelineBuilderTests
         var pipelineBuilder = new NotificationPipelineBuilder();
 
         // Act
-        await pipelineBuilder.BuildAndExecute(notification, serviceProvider, publisher, CancellationToken.None);
+        await pipelineBuilder.Execute(notification, serviceProvider, publisher, CancellationToken.None);
 
         // Assert
         Assert.Equal(2, receivedMessages.Count);
@@ -180,7 +180,7 @@ public class NotificationPipelineBuilderTests
         var pipelineBuilder = new NotificationPipelineBuilder();
 
         // Act
-        await pipelineBuilder.BuildAndExecute(notification, serviceProvider, publisher, CancellationToken.None);
+        await pipelineBuilder.Execute(notification, serviceProvider, publisher, CancellationToken.None);
 
         // Assert
         Assert.Equal(3, executionOrder.Count);

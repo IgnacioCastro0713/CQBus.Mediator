@@ -8,7 +8,7 @@ namespace CQBus.Mediator.PipelineBuilders;
 
 public interface IStreamPipelineBuilder
 {
-    IAsyncEnumerable<TResponse> BuildAndExecute<TRequest, TResponse>(
+    IAsyncEnumerable<TResponse> Execute<TRequest, TResponse>(
         TRequest request,
         IServiceProvider services,
         CancellationToken cancellationToken)
@@ -19,7 +19,7 @@ internal sealed class StreamPipelineBuilder : IStreamPipelineBuilder
 {
     public static StreamPipelineBuilder Instance { get; } = new();
 
-    public async IAsyncEnumerable<TResponse> BuildAndExecute<TRequest, TResponse>(
+    public async IAsyncEnumerable<TResponse> Execute<TRequest, TResponse>(
         TRequest request,
         IServiceProvider services,
         [EnumeratorCancellation] CancellationToken cancellationToken)

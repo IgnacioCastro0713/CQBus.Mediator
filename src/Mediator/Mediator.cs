@@ -13,9 +13,9 @@ public sealed class Mediator(
 {
     private readonly INotificationPublisher _publisher = publisher ?? new ForeachAwaitPublisher();
 
-    private static readonly MethodInfo BuildAndExecuteRequestMethod = typeof(IRequestPipelineBuilder).GetMethod(nameof(IRequestPipelineBuilder.BuildAndExecute))!;
-    private static readonly MethodInfo BuildAndExecuteNotificationMethod = typeof(INotificationPipelineBuilder).GetMethod(nameof(INotificationPipelineBuilder.BuildAndExecute))!;
-    private static readonly MethodInfo BuildAndExecuteStreamMethod = typeof(IStreamPipelineBuilder).GetMethod(nameof(IStreamPipelineBuilder.BuildAndExecute))!;
+    private static readonly MethodInfo BuildAndExecuteRequestMethod = typeof(IRequestPipelineBuilder).GetMethod(nameof(IRequestPipelineBuilder.Execute))!;
+    private static readonly MethodInfo BuildAndExecuteNotificationMethod = typeof(INotificationPipelineBuilder).GetMethod(nameof(INotificationPipelineBuilder.Execute))!;
+    private static readonly MethodInfo BuildAndExecuteStreamMethod = typeof(IStreamPipelineBuilder).GetMethod(nameof(IStreamPipelineBuilder.Execute))!;
 
     private static readonly ConcurrentDictionary<(Type requestType, Type responseType), Delegate> RequestHandlerCache = new(new TypeTuple());
     private static readonly ConcurrentDictionary<Type, Delegate> NotificationHandlerCache = new();
