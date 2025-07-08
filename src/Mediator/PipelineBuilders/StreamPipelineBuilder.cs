@@ -26,7 +26,7 @@ internal sealed class StreamPipelineBuilder : IStreamPipelineBuilder
         where TRequest : IStreamRequest<TResponse>
     {
         IStreamRequestHandler<TRequest, TResponse> handler = services.GetRequiredService<IStreamRequestHandler<TRequest, TResponse>>();
-        IStreamPipelineBehavior<TRequest, TResponse>[] behaviors = services.GetServices<IStreamPipelineBehavior<TRequest, TResponse>>().ToArray();
+        IStreamPipelineBehavior<TRequest, TResponse>[] behaviors = Unsafe.As<IStreamPipelineBehavior<TRequest, TResponse>[]>(services.GetServices<IStreamPipelineBehavior<TRequest, TResponse>>());
         StreamHandlerDelegate<TResponse> pipeline = ct => handler.Handle(request, ct);
 
         for (int i = behaviors.Length - 1; i >= 0; i--)

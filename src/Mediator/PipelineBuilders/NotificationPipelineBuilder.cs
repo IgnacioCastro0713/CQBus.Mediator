@@ -1,4 +1,5 @@
-﻿using CQBus.Mediator.Handlers;
+﻿using System.Runtime.CompilerServices;
+using CQBus.Mediator.Handlers;
 using CQBus.Mediator.Messages;
 using CQBus.Mediator.NotificationPublishers;
 using Microsoft.Extensions.DependencyInjection;
@@ -26,7 +27,7 @@ internal sealed class NotificationPipelineBuilder : INotificationPipelineBuilder
         CancellationToken cancellationToken)
         where TNotification : INotification
     {
-        INotificationHandler<TNotification>[] handlers = services.GetServices<INotificationHandler<TNotification>>().ToArray();
+        INotificationHandler<TNotification>[] handlers = Unsafe.As<INotificationHandler<TNotification>[]>(services.GetServices<INotificationHandler<TNotification>>());
 
         return publisher.Publish(handlers, notification, cancellationToken);
     }

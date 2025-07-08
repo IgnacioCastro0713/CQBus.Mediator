@@ -59,11 +59,7 @@ public static class DependencyInjection
         {
             foreach (Type iType in type.GetInterfaces().Where(i => i.IsGenericType && IsHandlerInterface(i.GetGenericTypeDefinition())))
             {
-                ServiceDescriptor sd = type.IsGenericTypeDefinition && iType.IsGenericType
-                    ? ServiceDescriptor.Describe(iType.GetGenericTypeDefinition(), type.GetGenericTypeDefinition(), serviceLifetime)
-                    : ServiceDescriptor.Describe(iType, type, serviceLifetime);
-
-                services.TryAddEnumerable(sd);
+                services.TryAddEnumerable(ServiceDescriptor.Describe(iType, type, serviceLifetime));
             }
         }
     }

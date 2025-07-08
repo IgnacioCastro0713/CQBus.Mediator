@@ -1,4 +1,5 @@
-﻿using CQBus.Mediator.Handlers;
+﻿using System.Runtime.CompilerServices;
+using CQBus.Mediator.Handlers;
 using CQBus.Mediator.Messages;
 using CQBus.Mediator.Pipelines;
 using Microsoft.Extensions.DependencyInjection;
@@ -25,7 +26,7 @@ internal sealed class RequestPipelineBuilder : IRequestPipelineBuilder
         where TRequest : IRequest<TResponse>
     {
         IRequestHandler<TRequest, TResponse> handler = services.GetRequiredService<IRequestHandler<TRequest, TResponse>>();
-        IPipelineBehavior<TRequest, TResponse>[] behaviors = services.GetServices<IPipelineBehavior<TRequest, TResponse>>().ToArray();
+        IPipelineBehavior<TRequest, TResponse>[] behaviors = Unsafe.As<IPipelineBehavior<TRequest, TResponse>[]>(services.GetServices<IPipelineBehavior<TRequest, TResponse>>());
         RequestHandlerDelegate<TResponse> pipeline = ct => handler.Handle(request, ct);
 
         for (int i = behaviors.Length - 1; i >= 0; i--)
