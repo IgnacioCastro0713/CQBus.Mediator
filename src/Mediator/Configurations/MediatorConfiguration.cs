@@ -10,7 +10,7 @@ public sealed class MediatorConfiguration
     internal List<Assembly> AssembliesToRegister { get; set; } = [];
     internal List<ServiceDescriptor> BehaviorsToRegister { get; } = [];
     internal List<ServiceDescriptor> StreamBehaviorsToRegister { get; set; } = [];
-    public ServiceLifetime ServiceLifetime { get; set; } = ServiceLifetime.Transient;
+    public ServiceLifetime ServiceLifetime { get; set; } = ServiceLifetime.Scoped;
     public Type PublisherStrategyType { get; set; } = typeof(ForeachAwaitPublisher);
 
     public MediatorConfiguration RegisterServicesFromAssembly(Assembly assembly)
@@ -23,7 +23,7 @@ public sealed class MediatorConfiguration
     public MediatorConfiguration AddBehavior(
         Type behaviorType,
         Type implementationType,
-        ServiceLifetime serviceLifetime = ServiceLifetime.Transient)
+        ServiceLifetime serviceLifetime = ServiceLifetime.Scoped)
     {
         BehaviorsToRegister.Add(new ServiceDescriptor(behaviorType, implementationType, serviceLifetime));
 
@@ -32,7 +32,7 @@ public sealed class MediatorConfiguration
 
     public MediatorConfiguration AddOpenBehavior(
         Type behaviorType,
-        ServiceLifetime serviceLifetime = ServiceLifetime.Transient)
+        ServiceLifetime serviceLifetime = ServiceLifetime.Scoped)
     {
         if (!behaviorType.IsGenericType)
         {
@@ -65,7 +65,7 @@ public sealed class MediatorConfiguration
     public MediatorConfiguration AddStreamBehavior(
         Type serviceType,
         Type implementationType,
-        ServiceLifetime serviceLifetime = ServiceLifetime.Transient)
+        ServiceLifetime serviceLifetime = ServiceLifetime.Scoped)
     {
         StreamBehaviorsToRegister.Add(ServiceDescriptor.Describe(
             serviceType,
@@ -77,7 +77,7 @@ public sealed class MediatorConfiguration
 
     public MediatorConfiguration AddOpenStreamBehavior(
         Type openBehaviorType,
-        ServiceLifetime serviceLifetime = ServiceLifetime.Transient)
+        ServiceLifetime serviceLifetime = ServiceLifetime.Scoped)
     {
         if (!openBehaviorType.IsGenericType)
         {

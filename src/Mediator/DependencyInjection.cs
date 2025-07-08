@@ -19,15 +19,11 @@ public static class DependencyInjection
         Action<MediatorConfiguration> configurations)
     {
         var configurationOptions = new MediatorConfiguration();
-
         configurations.Invoke(configurationOptions);
 
         services.TryAddMediator(configurationOptions);
-
         services.TryAddHandlers(configurationOptions.AssembliesToRegister, configurationOptions.ServiceLifetime);
-
         services.TryAddPublisher(configurationOptions.PublisherStrategyType, configurationOptions.ServiceLifetime);
-
         services.TryAddBehaviors(configurationOptions);
 
         return services;
@@ -52,33 +48,23 @@ public static class DependencyInjection
     private static void TryAddHandlers(
         this IServiceCollection services,
         List<Assembly> assembliesToRegister,
-        ServiceLifetime serviceLifetime = ServiceLifetime.Transient)
+        ServiceLifetime serviceLifetime = ServiceLifetime.Scoped)
     {
         if (assembliesToRegister == null || !assembliesToRegister.Any())
         {
             throw new ArgumentNullException(nameof(assembliesToRegister), "At least one assembly must be provided for handler registration.");
         }
 
-        var handlers = assembliesToRegister
-            .SelectMany(assembly => assembly.GetTypes())
-            .Where(t => t is { IsClass: true, IsAbstract: false, IsInterface: false })
-            .Select(t => new
-            {
-                Type = t,
-                Interfaces = t.GetInterfaces()
-                    .Where(i => i.IsGenericType && IsHandlerInterface(i.GetGenericTypeDefinition()))
-                    .ToList()
-            })
-            .Where(t => t.Interfaces.Count > 0)
-            .SelectMany(t => t.Interfaces.Select(i => new { Implementation = t.Type, Interface = i }))
-            .ToList();
-
-        foreach (var handler in handlers)
+        foreach (Type type in assembliesToRegister.SelectMany(a => a.GetTypes()).Where(t => t is { IsClass: true, IsAbstract: false, IsInterface: false }))
         {
-            services.TryAddEnumerable(ServiceDescriptor.Describe(
-                handler.Interface,
-                handler.Implementation,
-                serviceLifetime));
+            foreach (Type iType in type.GetInterfaces().Where(i => i.IsGenericType && IsHandlerInterface(i.GetGenericTypeDefinition())))
+            {
+                ServiceDescriptor sd = type.IsGenericTypeDefinition && iType.IsGenericType
+                    ? ServiceDescriptor.Describe(iType.GetGenericTypeDefinition(), type.GetGenericTypeDefinition(), serviceLifetime)
+                    : ServiceDescriptor.Describe(iType, type, serviceLifetime);
+
+                services.TryAddEnumerable(sd);
+            }
         }
     }
 
