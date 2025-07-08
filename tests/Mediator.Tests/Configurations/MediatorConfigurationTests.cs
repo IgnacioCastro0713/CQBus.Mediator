@@ -79,7 +79,7 @@ public class MediatorConfigurationTests
         var options = new MediatorConfiguration();
 
         // Act & Assert
-        Assert.Equal(ServiceLifetime.Transient, options.ServiceLifetime);
+        Assert.Equal(ServiceLifetime.Scoped, options.ServiceLifetime);
     }
 
     [Fact]
@@ -141,7 +141,7 @@ public class MediatorConfigurationTests
         ServiceDescriptor descriptor = options.BehaviorsToRegister[0];
         Assert.Equal(serviceType, descriptor.ServiceType);
         Assert.Equal(implementationType, descriptor.ImplementationType);
-        Assert.Equal(ServiceLifetime.Transient, descriptor.Lifetime);
+        Assert.Equal(ServiceLifetime.Scoped, descriptor.Lifetime);
     }
 
     [Fact]
@@ -182,7 +182,7 @@ public class MediatorConfigurationTests
 
         Assert.Equal(serviceType1, descriptor1.ServiceType);
         Assert.Equal(implementationType1, descriptor1.ImplementationType);
-        Assert.Equal(ServiceLifetime.Transient, descriptor1.Lifetime);
+        Assert.Equal(ServiceLifetime.Scoped, descriptor1.Lifetime);
 
         Assert.Equal(serviceType2, descriptor2.ServiceType);
         Assert.Equal(implementationType2, descriptor2.ImplementationType);
@@ -247,7 +247,7 @@ public class MediatorConfigurationTests
         ServiceDescriptor descriptor = options.BehaviorsToRegister[0];
         Assert.Equal(typeof(IPipelineBehavior<,>), descriptor.ServiceType);
         Assert.Equal(behaviorType, descriptor.ImplementationType);
-        Assert.Equal(ServiceLifetime.Transient, descriptor.Lifetime);
+        Assert.Equal(ServiceLifetime.Scoped, descriptor.Lifetime);
     }
 
     [Fact]
@@ -311,7 +311,7 @@ public class MediatorConfigurationTests
         ServiceDescriptor descriptor = options.StreamBehaviorsToRegister[0];
         Assert.Equal(serviceType, descriptor.ServiceType);
         Assert.Equal(implementationType, descriptor.ImplementationType);
-        Assert.Equal(ServiceLifetime.Transient, descriptor.Lifetime);
+        Assert.Equal(ServiceLifetime.Scoped, descriptor.Lifetime);
     }
 
     [Fact]
@@ -347,7 +347,7 @@ public class MediatorConfigurationTests
         ServiceDescriptor descriptor = options.StreamBehaviorsToRegister[0];
         Assert.Equal(typeof(IStreamPipelineBehavior<,>), descriptor.ServiceType);
         Assert.Equal(behaviorType, descriptor.ImplementationType);
-        Assert.Equal(ServiceLifetime.Transient, descriptor.Lifetime);
+        Assert.Equal(ServiceLifetime.Scoped, descriptor.Lifetime);
     }
 
     [Fact]

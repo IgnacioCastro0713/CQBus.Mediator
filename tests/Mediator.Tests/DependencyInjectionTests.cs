@@ -276,7 +276,7 @@ public class DependencyInjectionTests
         // Assert
         ServiceDescriptor? descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IMediator));
         Assert.NotNull(descriptor);
-        Assert.Equal(ServiceLifetime.Transient, descriptor.Lifetime);
+        Assert.Equal(ServiceLifetime.Scoped, descriptor.Lifetime);
     }
 
     [Fact]
