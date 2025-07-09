@@ -25,10 +25,15 @@ internal sealed class RequestPipelineBuilder : IRequestPipelineBuilder
         CancellationToken cancellationToken)
         where TRequest : IRequest<TResponse>
     {
-        IRequestHandler<TRequest, TResponse> handler = services.GetRequiredService<IRequestHandler<TRequest, TResponse>>();
         IPipelineBehavior<TRequest, TResponse>[] behaviors = Unsafe.As<IPipelineBehavior<TRequest, TResponse>[]>(services.GetServices<IPipelineBehavior<TRequest, TResponse>>());
-        RequestHandlerDelegate<TResponse> pipeline = ct => handler.Handle(request, ct);
+        IRequestHandler<TRequest, TResponse> handler = services.GetRequiredService<IRequestHandler<TRequest, TResponse>>();
 
+        if (behaviors.Length == 0)
+        {
+            return handler.Handle(request, cancellationToken);
+        }
+
+        RequestHandlerDelegate<TResponse> pipeline = ct => handler.Handle(request, ct);
         for (int i = behaviors.Length - 1; i >= 0; i--)
         {
             IPipelineBehavior<TRequest, TResponse> currentBehavior = behaviors[i];
