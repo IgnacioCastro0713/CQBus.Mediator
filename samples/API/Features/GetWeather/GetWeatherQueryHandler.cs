@@ -2,7 +2,7 @@
 
 namespace API.Features.GetWeather;
 
-public sealed class GetWeatherQueryHandler(IWeatherService weatherService)
+internal sealed class GetWeatherQueryHandler(IWeatherService weatherService)
     : IRequestHandler<GetWeatherQuery, IEnumerable<WeatherForecast>>
 {
     public async ValueTask<IEnumerable<WeatherForecast>> Handle(
