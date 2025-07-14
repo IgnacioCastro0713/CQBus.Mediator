@@ -21,7 +21,7 @@ public static class DependencyInjection
         var configurationOptions = new MediatorConfiguration();
         configurations.Invoke(configurationOptions);
 
-        services.TryAddMediator(configurationOptions);
+        services.TryAddMediator(configurationOptions.ServiceLifetime);
         services.TryAddHandlers(configurationOptions.AssembliesToRegister, configurationOptions.ServiceLifetime);
         services.TryAddPublisher(configurationOptions.PublisherStrategyType, configurationOptions.ServiceLifetime);
         services.TryAddBehaviors(configurationOptions);
@@ -29,20 +29,22 @@ public static class DependencyInjection
         return services;
     }
 
-    private static void TryAddMediator(this IServiceCollection services, MediatorConfiguration configurationOptions)
+    private static void TryAddMediator(
+        this IServiceCollection services,
+        ServiceLifetime serviceLifetime = ServiceLifetime.Scoped)
     {
         services.TryAdd(ServiceDescriptor.Describe(
             typeof(IMediator),
             typeof(Mediator),
-            configurationOptions.ServiceLifetime));
+            serviceLifetime));
         services.TryAdd(ServiceDescriptor.Describe(
             typeof(ISender),
             sp => sp.GetRequiredService<IMediator>(),
-            configurationOptions.ServiceLifetime));
+            serviceLifetime));
         services.TryAdd(ServiceDescriptor.Describe(
             typeof(IPublisher),
             sp => sp.GetRequiredService<IMediator>(),
-            configurationOptions.ServiceLifetime));
+            serviceLifetime));
     }
 
     private static void TryAddHandlers(
@@ -55,21 +57,33 @@ public static class DependencyInjection
             throw new ArgumentNullException(nameof(assembliesToRegister), "At least one assembly must be provided for handler registration.");
         }
 
-        foreach (Type type in assembliesToRegister.SelectMany(a => a.GetTypes()).Where(t => t is { IsClass: true, IsAbstract: false, IsInterface: false }))
+        foreach (Type type in assembliesToRegister
+                     .SelectMany(a => a.GetTypes())
+                     .Distinct()
+                     .Where(t => t is { IsClass: true, IsAbstract: false, IsInterface: false }))
         {
-            foreach (Type iType in type.GetInterfaces().Where(i => i.IsGenericType && IsHandlerInterface(i.GetGenericTypeDefinition())))
+            foreach (Type iType in type
+                         .GetInterfaces()
+                         .Where(i => i.IsGenericType && IsHandlerInterface(i.GetGenericTypeDefinition())))
             {
-                services.TryAddEnumerable(ServiceDescriptor.Describe(iType, type, serviceLifetime));
+                Type genericTypeDefinition = iType.GetGenericTypeDefinition();
+                var sd = ServiceDescriptor.Describe(iType, type, serviceLifetime);
+
+                if (genericTypeDefinition == NotificationHandlerType)
+                {
+                    services.TryAddEnumerable(sd);
+                    continue;
+                }
+
+                services.TryAdd(sd);
             }
         }
     }
 
-    private static bool IsHandlerInterface(Type type)
-    {
-        return type == RequestHandlerType ||
-               type == StreamHandlerType ||
-               type == NotificationHandlerType;
-    }
+    private static bool IsHandlerInterface(Type type) =>
+        type == RequestHandlerType ||
+        type == StreamHandlerType ||
+        type == NotificationHandlerType;
 
     private static void TryAddPublisher(
         this IServiceCollection services,

@@ -35,11 +35,11 @@ CQBus.Mediator is a lightweight, extensible library for implementing the Mediato
 Install via NuGet Package Manager:
 
 ```pwsh
-dotnet add package CQBus.Mediator --version 1.0.10
+dotnet add package CQBus.Mediator --version 1.0.11
 ```
 or
 ```xml
-<PackageReference Include="CQBus.Mediator" Version="1.0.10" />
+<PackageReference Include="CQBus.Mediator" Version="1.0.11" />
 ```
 
 

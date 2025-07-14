@@ -25,7 +25,7 @@ public sealed class MediatorConfiguration
         Type implementationType,
         ServiceLifetime serviceLifetime = ServiceLifetime.Scoped)
     {
-        BehaviorsToRegister.Add(new ServiceDescriptor(behaviorType, implementationType, serviceLifetime));
+        BehaviorsToRegister.Add(ServiceDescriptor.Describe(behaviorType, implementationType, serviceLifetime));
 
         return this;
     }
