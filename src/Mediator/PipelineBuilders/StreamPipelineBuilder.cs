@@ -33,7 +33,7 @@ internal sealed class StreamPipelineBuilder : IStreamPipelineBuilder
         {
             IStreamPipelineBehavior<TRequest, TResponse> currentBehavior = behaviors[i];
             StreamHandlerDelegate<TResponse> next = pipeline;
-            pipeline = ct => currentBehavior.Handle(request, _ => next(ct), ct);
+            pipeline = ct => currentBehavior.Handle(request, next, ct);
         }
 
         await foreach (TResponse item in pipeline(cancellationToken).ConfigureAwait(false))

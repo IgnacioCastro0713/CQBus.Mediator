@@ -1,6 +1,4 @@
-﻿using System.Collections.Concurrent;
-using System.Linq.Expressions;
-using System.Reflection;
+﻿using System.Collections.Frozen;
 using CQBus.Mediator.Messages;
 using CQBus.Mediator.NotificationPublishers;
 using CQBus.Mediator.PipelineBuilders;
@@ -9,31 +7,23 @@ namespace CQBus.Mediator;
 
 public sealed class Mediator(
     IServiceProvider serviceProvider,
+    IMediatorDispatchMaps maps,
     INotificationPublisher? publisher = null) : IMediator
 {
     private readonly INotificationPublisher _publisher = publisher ?? new ForeachAwaitPublisher();
-
-    private static readonly MethodInfo BuildAndExecuteRequestMethod = typeof(IRequestPipelineBuilder).GetMethod(nameof(IRequestPipelineBuilder.Execute))!;
-    private static readonly MethodInfo BuildAndExecuteNotificationMethod = typeof(INotificationPipelineBuilder).GetMethod(nameof(INotificationPipelineBuilder.Execute))!;
-    private static readonly MethodInfo BuildAndExecuteStreamMethod = typeof(IStreamPipelineBuilder).GetMethod(nameof(IStreamPipelineBuilder.Execute))!;
-
-    private static readonly ConcurrentDictionary<(Type requestType, Type responseType), Delegate> RequestHandlerCache = new(new TypeTuple());
-    private static readonly ConcurrentDictionary<Type, Delegate> NotificationHandlerCache = new();
-    private static readonly ConcurrentDictionary<(Type requestType, Type responseType), Delegate> StreamHandlerCache = new(new TypeTuple());
 
     public ValueTask<TResponse> Send<TResponse>(IRequest<TResponse> request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        Type requestType = request.GetType();
-        Type responseType = typeof(TResponse);
+        (Type req, Type res) key = (request.GetType(), typeof(TResponse));
+        if (!maps.Requests.TryGetValue(key, out Delegate? del))
+        {
+            throw new InvalidOperationException($"No IRequest handler map for ({key.req.Name}, {key.res.Name}).");
+        }
 
-        var requestHandler = (Func<IRequestPipelineBuilder, IRequest<TResponse>, IServiceProvider, CancellationToken, ValueTask<TResponse>>)
-            RequestHandlerCache.GetOrAdd(
-                (requestType, responseType),
-                static types => CreateRequestHandler<TResponse>(types.requestType, types.responseType));
-
-        return requestHandler(RequestPipelineBuilder.Instance, request, serviceProvider, cancellationToken);
+        var invoker = (RequestInvoker<TResponse>)del;
+        return invoker(RequestPipelineBuilder.Instance, request, serviceProvider, cancellationToken);
     }
 
     public ValueTask Publish<TNotification>(TNotification notification, CancellationToken cancellationToken = default)
@@ -41,112 +31,84 @@ public sealed class Mediator(
     {
         ArgumentNullException.ThrowIfNull(notification);
 
-        Type notificationType = notification.GetType();
+        if (!maps.Notifications.TryGetValue(notification.GetType(), out Delegate? del))
+        {
+            return ValueTask.CompletedTask;
+        }
 
-        var notificationHandler = (Func<INotificationPipelineBuilder, TNotification, IServiceProvider, INotificationPublisher, CancellationToken, ValueTask>)
-            NotificationHandlerCache.GetOrAdd(
-                notificationType,
-                static type => CreateNotificationHandler<TNotification>(type));
-
-        return notificationHandler(NotificationPipelineBuilder.Instance, notification, serviceProvider, _publisher, cancellationToken);
+        var invoker = (NotificationInvoker<TNotification>)del;
+        return invoker(NotificationPipelineBuilder.Instance, notification, serviceProvider, _publisher, cancellationToken);
     }
 
     public IAsyncEnumerable<TResponse> CreateStream<TResponse>(IStreamRequest<TResponse> request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        Type requestType = request.GetType();
-        Type responseType = typeof(TResponse);
+        (Type req, Type res) key = (request.GetType(), typeof(TResponse));
+        if (!maps.Streams.TryGetValue(key, out Delegate? del))
+        {
+            throw new InvalidOperationException($"No IStream handler map for ({key.req.Name}, {key.res.Name}).");
+        }
 
-        var streamHandler = (Func<IStreamPipelineBuilder, IStreamRequest<TResponse>, IServiceProvider, CancellationToken, IAsyncEnumerable<TResponse>>)
-            StreamHandlerCache.GetOrAdd((requestType, responseType),
-                static types => CreateStreamHandler<TResponse>(types.requestType, types.responseType));
-
-        return streamHandler(StreamPipelineBuilder.Instance, request, serviceProvider, cancellationToken);
-    }
-
-    private static Func<IRequestPipelineBuilder, IRequest<TResponse>, IServiceProvider, CancellationToken, ValueTask<TResponse>> CreateRequestHandler<TResponse>(Type requestType, Type responseType)
-    {
-        ParameterExpression pipelineBuilderParam = Expression.Parameter(typeof(IRequestPipelineBuilder), "pipelineBuilder");
-        ParameterExpression requestParam = Expression.Parameter(typeof(IRequest<TResponse>), "request");
-        ParameterExpression serviceProviderParam = Expression.Parameter(typeof(IServiceProvider), "serviceProvider");
-        ParameterExpression cancellationTokenParam = Expression.Parameter(typeof(CancellationToken), "cancellationToken");
-
-        UnaryExpression requestCast = Expression.Convert(requestParam, requestType);
-        MethodInfo genericMethod = BuildAndExecuteRequestMethod.MakeGenericMethod(requestType, responseType);
-
-        MethodCallExpression methodCall = Expression.Call(
-            pipelineBuilderParam,
-            genericMethod,
-            requestCast,
-            serviceProviderParam,
-            cancellationTokenParam);
-
-        return Expression.Lambda<Func<IRequestPipelineBuilder, IRequest<TResponse>, IServiceProvider, CancellationToken, ValueTask<TResponse>>>(
-                methodCall,
-                pipelineBuilderParam,
-                requestParam,
-                serviceProviderParam,
-                cancellationTokenParam).Compile();
-    }
-
-    private static Func<INotificationPipelineBuilder, TNotification, IServiceProvider, INotificationPublisher, CancellationToken, ValueTask> CreateNotificationHandler<TNotification>(Type notificationType)
-        where TNotification : INotification
-    {
-        ParameterExpression pipelineBuilderParam = Expression.Parameter(typeof(INotificationPipelineBuilder), "pipelineBuilder");
-        ParameterExpression notificationParam = Expression.Parameter(typeof(TNotification), "notification");
-        ParameterExpression serviceProviderParam = Expression.Parameter(typeof(IServiceProvider), "serviceProvider");
-        ParameterExpression publisherParam = Expression.Parameter(typeof(INotificationPublisher), "publisher");
-        ParameterExpression cancellationTokenParam = Expression.Parameter(typeof(CancellationToken), "cancellationToken");
-
-        MethodInfo genericMethod = BuildAndExecuteNotificationMethod.MakeGenericMethod(notificationType);
-
-        MethodCallExpression methodCall = Expression.Call(
-            pipelineBuilderParam,
-            genericMethod,
-            notificationParam,
-            serviceProviderParam,
-            publisherParam,
-            cancellationTokenParam);
-
-        return Expression.Lambda<Func<INotificationPipelineBuilder, TNotification, IServiceProvider, INotificationPublisher, CancellationToken, ValueTask>>(
-                methodCall,
-                pipelineBuilderParam,
-                notificationParam,
-                serviceProviderParam,
-                publisherParam,
-                cancellationTokenParam).Compile();
-    }
-
-    private static Func<IStreamPipelineBuilder, IStreamRequest<TResponse>, IServiceProvider, CancellationToken, IAsyncEnumerable<TResponse>> CreateStreamHandler<TResponse>(Type requestType, Type responseType)
-    {
-        ParameterExpression pipelineBuilderParam = Expression.Parameter(typeof(IStreamPipelineBuilder), "pipelineBuilder");
-        ParameterExpression requestParam = Expression.Parameter(typeof(IStreamRequest<TResponse>), "request");
-        ParameterExpression serviceProviderParam = Expression.Parameter(typeof(IServiceProvider), "serviceProvider");
-        ParameterExpression cancellationTokenParam = Expression.Parameter(typeof(CancellationToken), "cancellationToken");
-
-        UnaryExpression requestCast = Expression.Convert(requestParam, requestType);
-        MethodInfo genericMethod = BuildAndExecuteStreamMethod.MakeGenericMethod(requestType, responseType);
-
-        MethodCallExpression methodCall = Expression.Call(
-            pipelineBuilderParam,
-            genericMethod,
-            requestCast,
-            serviceProviderParam,
-            cancellationTokenParam);
-
-        return Expression.Lambda<Func<IStreamPipelineBuilder, IStreamRequest<TResponse>, IServiceProvider, CancellationToken, IAsyncEnumerable<TResponse>>>(
-                methodCall,
-                pipelineBuilderParam,
-                requestParam,
-                serviceProviderParam,
-                cancellationTokenParam).Compile();
+        var invoker = (StreamInvoker<TResponse>)del;
+        return invoker(StreamPipelineBuilder.Instance, request, serviceProvider, cancellationToken);
     }
 }
 
-internal class TypeTuple : IEqualityComparer<(Type, Type)>
+internal delegate ValueTask<TResponse> RequestInvoker<TResponse>(
+    IRequestPipelineBuilder pb, IRequest<TResponse> request, IServiceProvider sp, CancellationToken ct);
+
+internal delegate ValueTask NotificationInvoker<in TNotification>(
+    INotificationPipelineBuilder pb, TNotification notification, IServiceProvider sp, INotificationPublisher publisher, CancellationToken ct)
+    where TNotification : INotification;
+
+internal delegate IAsyncEnumerable<TResponse> StreamInvoker<TResponse>(
+    IStreamPipelineBuilder pb, IStreamRequest<TResponse> request, IServiceProvider sp, CancellationToken ct);
+
+
+
+internal static class StaticInvoker
 {
-    public bool Equals((Type, Type) x, (Type, Type) y) => x.Item1 == y.Item1 && x.Item2 == y.Item2;
+    public static ValueTask<TResponse> Request<TRequest, TResponse>(
+        IRequestPipelineBuilder pipelineBuilder,
+        IRequest<TResponse> request,
+        IServiceProvider serviceProvider,
+        CancellationToken cancellationToken)
+        where TRequest : IRequest<TResponse>
+        => pipelineBuilder.Execute<TRequest, TResponse>((TRequest)request, serviceProvider, cancellationToken);
 
-    public int GetHashCode((Type, Type) obj) => HashCode.Combine(obj.Item1, obj.Item2);
+    public static ValueTask Notification<TNotification>(
+        INotificationPipelineBuilder pipelineBuilder,
+        TNotification notification,
+        IServiceProvider serviceProvider,
+        INotificationPublisher publisher,
+        CancellationToken cancellationToken)
+        where TNotification : INotification
+        => pipelineBuilder.Execute(notification, serviceProvider, publisher, cancellationToken);
+
+    public static IAsyncEnumerable<TResponse> Stream<TRequest, TResponse>(
+        IStreamPipelineBuilder pipelineBuilder,
+        IStreamRequest<TResponse> request,
+        IServiceProvider serviceProvider,
+        CancellationToken cancellationToken)
+        where TRequest : IStreamRequest<TResponse>
+        => pipelineBuilder.Execute<TRequest, TResponse>((TRequest)request, serviceProvider, cancellationToken);
 }
+
+public interface IMediatorDispatchMaps
+{
+    FrozenDictionary<(Type req, Type res), Delegate> Requests { get; }
+    FrozenDictionary<Type, Delegate> Notifications { get; }
+    FrozenDictionary<(Type req, Type res), Delegate> Streams { get; }
+}
+
+internal sealed class MediatorDispatchMaps(
+    FrozenDictionary<(Type, Type), Delegate> requests,
+    FrozenDictionary<Type, Delegate> notifications,
+    FrozenDictionary<(Type, Type), Delegate> streams) : IMediatorDispatchMaps
+{
+    public FrozenDictionary<(Type, Type), Delegate> Requests { get; } = requests;
+    public FrozenDictionary<Type, Delegate> Notifications { get; } = notifications;
+    public FrozenDictionary<(Type, Type), Delegate> Streams { get; } = streams;
+}
+

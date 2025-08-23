@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+﻿using System.Collections.Frozen;
+using System.Reflection;
 using CQBus.Mediator.Configurations;
 using CQBus.Mediator.Handlers;
 using CQBus.Mediator.NotificationPublishers;
@@ -26,6 +27,8 @@ public static class DependencyInjection
         services.TryAddPublisher(configurationOptions.PublisherStrategyType, configurationOptions.ServiceLifetime);
         services.TryAddBehaviors(configurationOptions);
 
+        services.BuildAndRegisterDispatchMaps(configurationOptions.AssembliesToRegister);
+
         return services;
     }
 
@@ -37,10 +40,12 @@ public static class DependencyInjection
             typeof(IMediator),
             typeof(Mediator),
             serviceLifetime));
+
         services.TryAdd(ServiceDescriptor.Describe(
             typeof(ISender),
             sp => sp.GetRequiredService<IMediator>(),
             serviceLifetime));
+
         services.TryAdd(ServiceDescriptor.Describe(
             typeof(IPublisher),
             sp => sp.GetRequiredService<IMediator>(),
@@ -54,7 +59,8 @@ public static class DependencyInjection
     {
         if (assembliesToRegister == null || !assembliesToRegister.Any())
         {
-            throw new ArgumentNullException(nameof(assembliesToRegister), "At least one assembly must be provided for handler registration.");
+            throw new ArgumentNullException(nameof(assembliesToRegister),
+                "At least one assembly must be provided for handler registration.");
         }
 
         foreach (Type type in assembliesToRegister
@@ -92,7 +98,8 @@ public static class DependencyInjection
     {
         if (!typeof(INotificationPublisher).IsAssignableFrom(publisherStrategyType))
         {
-            throw new InvalidOperationException($"{publisherStrategyType.Name} must implement {nameof(INotificationPublisher)} interface.");
+            throw new InvalidOperationException(
+                $"{publisherStrategyType.Name} must implement {nameof(INotificationPublisher)} interface.");
         }
 
         services.TryAdd(ServiceDescriptor.Describe(
@@ -111,6 +118,80 @@ public static class DependencyInjection
         foreach (ServiceDescriptor serviceDescriptor in configurationOptions.StreamBehaviorsToRegister)
         {
             services.TryAddEnumerable(serviceDescriptor);
+        }
+    }
+
+    private static void BuildAndRegisterDispatchMaps(
+        this IServiceCollection services,
+        IEnumerable<Assembly> assemblies)
+    {
+        var req = new Dictionary<(Type, Type), Delegate>();
+        var notification = new Dictionary<Type, Delegate>();
+        var stream = new Dictionary<(Type, Type), Delegate>();
+
+        MethodInfo requestOpen = GetStatic(nameof(StaticInvoker.Request));
+        MethodInfo notificationOpen = GetStatic(nameof(StaticInvoker.Notification));
+        MethodInfo streamOpen = GetStatic(nameof(StaticInvoker.Stream));
+
+        foreach (Type t in assemblies.SelectMany(SafeGetTypes)
+                     .Where(t => t is { IsClass: true, IsAbstract: false }))
+        {
+            foreach (Type it in t.GetInterfaces().Where(i => i.IsGenericType))
+            {
+                Type open = it.GetGenericTypeDefinition();
+                Type[] args = it.GetGenericArguments();
+
+                if (open == RequestHandlerType)
+                {
+                    (Type tReq, Type tRes) = (args[0], args[1]);
+                    Delegate del = requestOpen
+                        .MakeGenericMethod(tReq, tRes)
+                        .CreateDelegate(typeof(RequestInvoker<>).MakeGenericType(tRes));
+                    req[(tReq, tRes)] = del;
+                }
+                else if (open == NotificationHandlerType)
+                {
+                    Type tNotification = args[0];
+                    notification.TryAdd(
+                        tNotification,
+                        notificationOpen
+                            .MakeGenericMethod(tNotification)
+                            .CreateDelegate(typeof(NotificationInvoker<>).MakeGenericType(tNotification))
+                    );
+                }
+                else if (open == StreamHandlerType)
+                {
+                    (Type tReq, Type tRes) = (args[0], args[1]);
+                    Delegate del = streamOpen
+                        .MakeGenericMethod(tReq, tRes)
+                        .CreateDelegate(typeof(StreamInvoker<>).MakeGenericType(tRes));
+                    stream[(tReq, tRes)] = del;
+                }
+            }
+        }
+
+        services.TryAddSingleton<IMediatorDispatchMaps>(new MediatorDispatchMaps(
+            req.ToFrozenDictionary(),
+            notification.ToFrozenDictionary(),
+            stream.ToFrozenDictionary()
+        ));
+
+        return;
+
+        static MethodInfo GetStatic(string name) =>
+            typeof(StaticInvoker).GetMethod(name, BindingFlags.Public | BindingFlags.Static)
+            ?? throw new InvalidOperationException($"StaticInvoker.{name} not found.");
+
+        static IEnumerable<Type> SafeGetTypes(Assembly a)
+        {
+            try
+            {
+                return a.DefinedTypes.Select(x => x.AsType());
+            }
+            catch (ReflectionTypeLoadException ex)
+            {
+                return ex.Types.Where(x => x is not null)!;
+            }
         }
     }
 }

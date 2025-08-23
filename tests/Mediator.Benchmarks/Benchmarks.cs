@@ -78,22 +78,22 @@ public class Benchmarks
 
     // Setup with pipeline behaviors
 
-    [BenchmarkCategory("Send"), Benchmark]
-    public Task<string> MediatR___Send_WithBehaviors() => _mediatRWithBehaviors.Send(_mediatRRequest);
+    //[BenchmarkCategory("Send"), Benchmark]
+    //public Task<string> MediatR___Send_WithBehaviors() => _mediatRWithBehaviors.Send(_mediatRRequest);
 
-    [BenchmarkCategory("Send"), Benchmark]
-    public ValueTask<string> Mediator__Send_WithBehaviors() => _mediatorWithBehaviors.Send(_request);
+    //[BenchmarkCategory("Send"), Benchmark]
+    //public ValueTask<string> Mediator__Send_WithBehaviors() => _mediatorWithBehaviors.Send(_request);
 
-    [BenchmarkCategory("Publish"), Benchmark]
-    public Task MediatR___Publish_WithBehaviors() => _mediatRWithBehaviors.Publish(_mediatRNotification);
+    //[BenchmarkCategory("Publish"), Benchmark]
+    //public Task MediatR___Publish_WithBehaviors() => _mediatRWithBehaviors.Publish(_mediatRNotification);
 
-    [BenchmarkCategory("Publish"), Benchmark]
-    public ValueTask Mediator__Publish_WithBehaviors() => _mediatorWithBehaviors.Publish(_notification);
+    //[BenchmarkCategory("Publish"), Benchmark]
+    //public ValueTask Mediator__Publish_WithBehaviors() => _mediatorWithBehaviors.Publish(_notification);
 
-    [BenchmarkCategory("CreateStream"), Benchmark]
-    public IAsyncEnumerable<string> MediatR___CreateStream_WithBehaviors() => _mediatRWithBehaviors.CreateStream(_mediatRStreamRequest);
+    //[BenchmarkCategory("CreateStream"), Benchmark]
+    //public IAsyncEnumerable<string> MediatR___CreateStream_WithBehaviors() => _mediatRWithBehaviors.CreateStream(_mediatRStreamRequest);
 
-    [BenchmarkCategory("CreateStream"), Benchmark]
-    public IAsyncEnumerable<string> Mediator__CreateStream_WithBehaviors() => _mediatorWithBehaviors.CreateStream(_streamRequest);
+    //[BenchmarkCategory("CreateStream"), Benchmark]
+    //public IAsyncEnumerable<string> Mediator__CreateStream_WithBehaviors() => _mediatorWithBehaviors.CreateStream(_streamRequest);
 
 }
