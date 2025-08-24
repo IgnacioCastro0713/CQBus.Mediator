@@ -8,10 +8,8 @@ namespace CQBus.Mediator;
 public sealed class Mediator(
     IServiceProvider serviceProvider,
     IMediatorDispatchMaps maps,
-    INotificationPublisher? publisher = null) : IMediator
+    INotificationPublisher publisher) : IMediator
 {
-    private readonly INotificationPublisher _publisher = publisher ?? new ForeachAwaitPublisher();
-
     public ValueTask<TResponse> Send<TResponse>(IRequest<TResponse> request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -37,7 +35,7 @@ public sealed class Mediator(
         }
 
         var handler = (NotificationInvoker<TNotification>)del;
-        return handler(NotificationPipelineBuilder.Instance, notification, serviceProvider, _publisher, cancellationToken);
+        return handler(NotificationPipelineBuilder.Instance, notification, serviceProvider, publisher, cancellationToken);
     }
 
     public IAsyncEnumerable<TResponse> CreateStream<TResponse>(IStreamRequest<TResponse> request, CancellationToken cancellationToken = default)

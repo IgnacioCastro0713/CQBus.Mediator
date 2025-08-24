@@ -4,6 +4,7 @@ using CQBus.Mediator;
 using CQBus.Mediator.Handlers;
 using CQBus.Mediator.Maps;
 using CQBus.Mediator.Messages;
+using CQBus.Mediator.NotificationPublishers;
 using CQBus.Mediator.Pipelines;
 using Moq;
 
@@ -70,7 +71,8 @@ public class MediatorWithMapsTests
             { (typeof(TestRequest), typeof(string)), reqInvoker }
         }.ToFrozenDictionary());
 
-        var mediator = new CQBus.Mediator.Mediator(sp.Object, maps.Object);
+        var publisher = new Mock<INotificationPublisher>(MockBehavior.Loose);
+        var mediator = new CQBus.Mediator.Mediator(sp.Object, maps.Object, publisher.Object);
 
         string result = await mediator.Send(new TestRequest { Message = "Hi" });
 
@@ -86,11 +88,14 @@ public class MediatorWithMapsTests
     {
         var sp = new Mock<IServiceProvider>(MockBehavior.Loose);
         var maps = new Mock<IMediatorDispatchMaps>(MockBehavior.Loose);
+
         maps.SetupGet(m => m.Requests).Returns(new Dictionary<(Type, Type), Delegate>().ToFrozenDictionary());
         maps.SetupGet(m => m.Notifications).Returns(new Dictionary<Type, Delegate>().ToFrozenDictionary());
         maps.SetupGet(m => m.Streams).Returns(new Dictionary<(Type, Type), Delegate>().ToFrozenDictionary());
 
-        var mediator = new CQBus.Mediator.Mediator(sp.Object, maps.Object);
+        var publisher = new Mock<INotificationPublisher>(MockBehavior.Loose);
+
+        var mediator = new CQBus.Mediator.Mediator(sp.Object, maps.Object, publisher.Object);
 
         await Assert.ThrowsAsync<ArgumentNullException>(async () =>
             await mediator.Send<string>(null!, CancellationToken.None));
@@ -107,8 +112,8 @@ public class MediatorWithMapsTests
         var maps = new Mock<IMediatorDispatchMaps>(MockBehavior.Strict);
         maps.SetupGet(m => m.Notifications)
             .Returns(new Dictionary<Type, Delegate>().ToFrozenDictionary());
-
-        var mediator = new CQBus.Mediator.Mediator(sp.Object, maps.Object);
+        var publisher = new Mock<INotificationPublisher>(MockBehavior.Loose);
+        var mediator = new CQBus.Mediator.Mediator(sp.Object, maps.Object, publisher.Object);
 
         await mediator.Publish(new TestNotification { Message = "noop" });
 
@@ -131,7 +136,8 @@ public class MediatorWithMapsTests
             { typeof(TestNotification), notifInvoker }
         }.ToFrozenDictionary());
 
-        var mediator = new CQBus.Mediator.Mediator(sp.Object, maps.Object);
+        var publisher = new Mock<INotificationPublisher>(MockBehavior.Loose);
+        var mediator = new CQBus.Mediator.Mediator(sp.Object, maps.Object, publisher.Object);
 
         await mediator.Publish(new TestNotification { Message = "hello" });
 
@@ -148,7 +154,9 @@ public class MediatorWithMapsTests
         maps.SetupGet(m => m.Notifications).Returns(new Dictionary<Type, Delegate>().ToFrozenDictionary());
         maps.SetupGet(m => m.Streams).Returns(new Dictionary<(Type, Type), Delegate>().ToFrozenDictionary());
 
-        var mediator = new CQBus.Mediator.Mediator(sp.Object, maps.Object);
+        var publisher = new Mock<INotificationPublisher>(MockBehavior.Loose);
+
+        var mediator = new CQBus.Mediator.Mediator(sp.Object, maps.Object, publisher.Object);
 
         await Assert.ThrowsAsync<ArgumentNullException>(async () =>
             await mediator.Publish<TestNotification>(null!, CancellationToken.None));
@@ -166,8 +174,8 @@ public class MediatorWithMapsTests
             .Returns(new TestStreamRequestHandler());
 
         sp.Setup(s => s.GetService(
-                typeof(IEnumerable<CQBus.Mediator.Pipelines.IStreamPipelineBehavior<TestStreamRequest, int>>)))
-            .Returns(Array.Empty<CQBus.Mediator.Pipelines.IStreamPipelineBehavior<TestStreamRequest, int>>());
+                typeof(IEnumerable<IStreamPipelineBehavior<TestStreamRequest, int>>)))
+            .Returns(Array.Empty<IStreamPipelineBehavior<TestStreamRequest, int>>());
 
         var maps = new Mock<IMediatorDispatchMaps>(MockBehavior.Strict);
         var streamInvoker = (StreamInvoker<int>)MediatorInvoker.Stream<TestStreamRequest, int>;
@@ -179,7 +187,9 @@ public class MediatorWithMapsTests
         maps.SetupGet(m => m.Requests).Returns(new Dictionary<(Type, Type), Delegate>().ToFrozenDictionary());
         maps.SetupGet(m => m.Notifications).Returns(new Dictionary<Type, Delegate>().ToFrozenDictionary());
 
-        var mediator = new CQBus.Mediator.Mediator(sp.Object, maps.Object);
+        var publisher = new Mock<INotificationPublisher>(MockBehavior.Loose);
+
+        var mediator = new CQBus.Mediator.Mediator(sp.Object, maps.Object, publisher.Object);
 
         var req = new TestStreamRequest { Count = 3 };
         var list = new List<int>();
@@ -203,11 +213,12 @@ public class MediatorWithMapsTests
         maps.SetupGet(m => m.Requests).Returns(new Dictionary<(Type, Type), Delegate>().ToFrozenDictionary());
         maps.SetupGet(m => m.Notifications).Returns(new Dictionary<Type, Delegate>().ToFrozenDictionary());
         maps.SetupGet(m => m.Streams).Returns(new Dictionary<(Type, Type), Delegate>().ToFrozenDictionary());
+        var publisher = new Mock<INotificationPublisher>(MockBehavior.Loose);
 
-        var mediator = new CQBus.Mediator.Mediator(sp.Object, maps.Object);
+        var mediator = new CQBus.Mediator.Mediator(sp.Object, maps.Object, publisher.Object);
 
         ArgumentNullException ex = Assert.Throws<ArgumentNullException>(() =>
-            mediator.CreateStream<int>(null!, CancellationToken.None));
+                mediator.CreateStream<int>(null!, CancellationToken.None));
         Assert.Equal("request", ex.ParamName);
     }
 
@@ -223,7 +234,9 @@ public class MediatorWithMapsTests
         maps.SetupGet(m => m.Notifications).Returns(new Dictionary<Type, Delegate>().ToFrozenDictionary());
         maps.SetupGet(m => m.Streams).Returns(new Dictionary<(Type, Type), Delegate>().ToFrozenDictionary());
 
-        var mediator = new CQBus.Mediator.Mediator(sp.Object, maps.Object);
+        var publisher = new Mock<INotificationPublisher>(MockBehavior.Loose);
+
+        var mediator = new CQBus.Mediator.Mediator(sp.Object, maps.Object, publisher.Object);
 
         Assert.NotNull(mediator);
     }
