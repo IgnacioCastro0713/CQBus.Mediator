@@ -6,16 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace CQBus.Mediator.PipelineBuilders;
 
-public interface IRequestPipelineBuilder
-{
-    ValueTask<TResponse> Execute<TRequest, TResponse>(
-        TRequest request,
-        IServiceProvider services,
-        CancellationToken cancellationToken)
-        where TRequest : IRequest<TResponse>;
-}
-
-internal sealed class RequestPipelineBuilder : IRequestPipelineBuilder
+internal sealed class RequestPipelineBuilder
 {
     public static RequestPipelineBuilder Instance { get; } = new();
 

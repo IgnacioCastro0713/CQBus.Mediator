@@ -1,4 +1,4 @@
-﻿using System.Collections.Frozen;
+﻿using CQBus.Mediator.Maps;
 using CQBus.Mediator.Messages;
 using CQBus.Mediator.NotificationPublishers;
 using CQBus.Mediator.PipelineBuilders;
@@ -22,8 +22,8 @@ public sealed class Mediator(
             throw new InvalidOperationException($"No IRequest handler map for ({key.req.Name}, {key.res.Name}).");
         }
 
-        var invoker = (RequestInvoker<TResponse>)del;
-        return invoker(RequestPipelineBuilder.Instance, request, serviceProvider, cancellationToken);
+        var handler = (RequestInvoker<TResponse>)del;
+        return handler(RequestPipelineBuilder.Instance, request, serviceProvider, cancellationToken);
     }
 
     public ValueTask Publish<TNotification>(TNotification notification, CancellationToken cancellationToken = default)
@@ -36,8 +36,8 @@ public sealed class Mediator(
             return ValueTask.CompletedTask;
         }
 
-        var invoker = (NotificationInvoker<TNotification>)del;
-        return invoker(NotificationPipelineBuilder.Instance, notification, serviceProvider, _publisher, cancellationToken);
+        var handler = (NotificationInvoker<TNotification>)del;
+        return handler(NotificationPipelineBuilder.Instance, notification, serviceProvider, _publisher, cancellationToken);
     }
 
     public IAsyncEnumerable<TResponse> CreateStream<TResponse>(IStreamRequest<TResponse> request, CancellationToken cancellationToken = default)
@@ -50,65 +50,17 @@ public sealed class Mediator(
             throw new InvalidOperationException($"No IStream handler map for ({key.req.Name}, {key.res.Name}).");
         }
 
-        var invoker = (StreamInvoker<TResponse>)del;
-        return invoker(StreamPipelineBuilder.Instance, request, serviceProvider, cancellationToken);
+        var handler = (StreamInvoker<TResponse>)del;
+        return handler(StreamPipelineBuilder.Instance, request, serviceProvider, cancellationToken);
     }
 }
 
 internal delegate ValueTask<TResponse> RequestInvoker<TResponse>(
-    IRequestPipelineBuilder pb, IRequest<TResponse> request, IServiceProvider sp, CancellationToken ct);
+    RequestPipelineBuilder pb, IRequest<TResponse> request, IServiceProvider sp, CancellationToken ct);
 
 internal delegate ValueTask NotificationInvoker<in TNotification>(
-    INotificationPipelineBuilder pb, TNotification notification, IServiceProvider sp, INotificationPublisher publisher, CancellationToken ct)
+    NotificationPipelineBuilder pb, TNotification notification, IServiceProvider sp, INotificationPublisher publisher, CancellationToken ct)
     where TNotification : INotification;
 
 internal delegate IAsyncEnumerable<TResponse> StreamInvoker<TResponse>(
-    IStreamPipelineBuilder pb, IStreamRequest<TResponse> request, IServiceProvider sp, CancellationToken ct);
-
-
-
-internal static class StaticInvoker
-{
-    public static ValueTask<TResponse> Request<TRequest, TResponse>(
-        IRequestPipelineBuilder pipelineBuilder,
-        IRequest<TResponse> request,
-        IServiceProvider serviceProvider,
-        CancellationToken cancellationToken)
-        where TRequest : IRequest<TResponse>
-        => pipelineBuilder.Execute<TRequest, TResponse>((TRequest)request, serviceProvider, cancellationToken);
-
-    public static ValueTask Notification<TNotification>(
-        INotificationPipelineBuilder pipelineBuilder,
-        TNotification notification,
-        IServiceProvider serviceProvider,
-        INotificationPublisher publisher,
-        CancellationToken cancellationToken)
-        where TNotification : INotification
-        => pipelineBuilder.Execute(notification, serviceProvider, publisher, cancellationToken);
-
-    public static IAsyncEnumerable<TResponse> Stream<TRequest, TResponse>(
-        IStreamPipelineBuilder pipelineBuilder,
-        IStreamRequest<TResponse> request,
-        IServiceProvider serviceProvider,
-        CancellationToken cancellationToken)
-        where TRequest : IStreamRequest<TResponse>
-        => pipelineBuilder.Execute<TRequest, TResponse>((TRequest)request, serviceProvider, cancellationToken);
-}
-
-public interface IMediatorDispatchMaps
-{
-    FrozenDictionary<(Type req, Type res), Delegate> Requests { get; }
-    FrozenDictionary<Type, Delegate> Notifications { get; }
-    FrozenDictionary<(Type req, Type res), Delegate> Streams { get; }
-}
-
-internal sealed class MediatorDispatchMaps(
-    FrozenDictionary<(Type, Type), Delegate> requests,
-    FrozenDictionary<Type, Delegate> notifications,
-    FrozenDictionary<(Type, Type), Delegate> streams) : IMediatorDispatchMaps
-{
-    public FrozenDictionary<(Type, Type), Delegate> Requests { get; } = requests;
-    public FrozenDictionary<Type, Delegate> Notifications { get; } = notifications;
-    public FrozenDictionary<(Type, Type), Delegate> Streams { get; } = streams;
-}
-
+    StreamPipelineBuilder pb, IStreamRequest<TResponse> request, IServiceProvider sp, CancellationToken ct);

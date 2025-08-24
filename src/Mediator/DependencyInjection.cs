@@ -2,6 +2,7 @@
 using System.Reflection;
 using CQBus.Mediator.Configurations;
 using CQBus.Mediator.Handlers;
+using CQBus.Mediator.Maps;
 using CQBus.Mediator.NotificationPublishers;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -27,7 +28,7 @@ public static class DependencyInjection
         services.TryAddPublisher(configurationOptions.PublisherStrategyType, configurationOptions.ServiceLifetime);
         services.TryAddBehaviors(configurationOptions);
 
-        services.BuildAndRegisterDispatchMaps(configurationOptions.AssembliesToRegister);
+        services.RegisterPreCompiledDispatchMaps(configurationOptions.AssembliesToRegister);
 
         return services;
     }
@@ -121,7 +122,7 @@ public static class DependencyInjection
         }
     }
 
-    private static void BuildAndRegisterDispatchMaps(
+    private static void RegisterPreCompiledDispatchMaps(
         this IServiceCollection services,
         IEnumerable<Assembly> assemblies)
     {
@@ -129,9 +130,9 @@ public static class DependencyInjection
         var notification = new Dictionary<Type, Delegate>();
         var stream = new Dictionary<(Type, Type), Delegate>();
 
-        MethodInfo requestOpen = GetStatic(nameof(StaticInvoker.Request));
-        MethodInfo notificationOpen = GetStatic(nameof(StaticInvoker.Notification));
-        MethodInfo streamOpen = GetStatic(nameof(StaticInvoker.Stream));
+        MethodInfo requestOpen = GetStatic(nameof(MediatorInvoker.Request));
+        MethodInfo notificationOpen = GetStatic(nameof(MediatorInvoker.Notification));
+        MethodInfo streamOpen = GetStatic(nameof(MediatorInvoker.Stream));
 
         foreach (Type t in assemblies.SelectMany(SafeGetTypes)
                      .Where(t => t is { IsClass: true, IsAbstract: false }))
@@ -179,7 +180,7 @@ public static class DependencyInjection
         return;
 
         static MethodInfo GetStatic(string name) =>
-            typeof(StaticInvoker).GetMethod(name, BindingFlags.Public | BindingFlags.Static)
+            typeof(MediatorInvoker).GetMethod(name, BindingFlags.Public | BindingFlags.Static)
             ?? throw new InvalidOperationException($"StaticInvoker.{name} not found.");
 
         static IEnumerable<Type> SafeGetTypes(Assembly a)

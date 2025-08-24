@@ -6,16 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace CQBus.Mediator.PipelineBuilders;
 
-public interface IStreamPipelineBuilder
-{
-    IAsyncEnumerable<TResponse> Execute<TRequest, TResponse>(
-        TRequest request,
-        IServiceProvider services,
-        CancellationToken cancellationToken)
-        where TRequest : IStreamRequest<TResponse>;
-}
-
-internal sealed class StreamPipelineBuilder : IStreamPipelineBuilder
+internal sealed class StreamPipelineBuilder
 {
     public static StreamPipelineBuilder Instance { get; } = new();
 
