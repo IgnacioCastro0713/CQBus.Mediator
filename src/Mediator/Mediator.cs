@@ -32,7 +32,7 @@ public sealed class Mediator(
         Type key = notification.GetType();
         if (!maps.Notifications.TryGetValue(key, out Delegate? del))
         {
-            throw new InvalidOperationException($"No INotification handler map for ({key.Name}).");
+            return ValueTask.CompletedTask;
         }
 
         var handler = (NotificationInvoker<TNotification>)del;

@@ -24,14 +24,14 @@ internal sealed class RequestPipelineBuilder
             return handler.Handle(request, cancellationToken);
         }
 
-        RequestHandlerDelegate<TResponse> pipeline = ct => handler.Handle(request, ct);
+        RequestHandlerDelegate<TResponse> next = ct => handler.Handle(request, ct);
         for (int i = behaviors.Length - 1; i >= 0; i--)
         {
             IPipelineBehavior<TRequest, TResponse> currentBehavior = behaviors[i];
-            RequestHandlerDelegate<TResponse> next = pipeline;
-            pipeline = ct => currentBehavior.Handle(request, next, ct);
+            RequestHandlerDelegate<TResponse> current = next;
+            next = ct => currentBehavior.Handle(request, current, ct);
         }
 
-        return pipeline(cancellationToken);
+        return next(cancellationToken);
     }
 }

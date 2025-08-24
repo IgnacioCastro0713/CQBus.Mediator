@@ -18,16 +18,16 @@ internal sealed class StreamPipelineBuilder
     {
         IStreamPipelineBehavior<TRequest, TResponse>[] behaviors = Unsafe.As<IStreamPipelineBehavior<TRequest, TResponse>[]>(services.GetServices<IStreamPipelineBehavior<TRequest, TResponse>>());
         IStreamRequestHandler<TRequest, TResponse> handler = services.GetRequiredService<IStreamRequestHandler<TRequest, TResponse>>();
-        StreamHandlerDelegate<TResponse> pipeline = ct => handler.Handle(request, ct);
 
+        StreamHandlerDelegate<TResponse> next = ct => handler.Handle(request, ct);
         for (int i = behaviors.Length - 1; i >= 0; i--)
         {
             IStreamPipelineBehavior<TRequest, TResponse> currentBehavior = behaviors[i];
-            StreamHandlerDelegate<TResponse> next = pipeline;
-            pipeline = ct => currentBehavior.Handle(request, next, ct);
+            StreamHandlerDelegate<TResponse> current = next;
+            next = ct => currentBehavior.Handle(request, current, ct);
         }
 
-        await foreach (TResponse item in pipeline(cancellationToken).ConfigureAwait(false))
+        await foreach (TResponse item in next(cancellationToken).ConfigureAwait(false))
         {
             yield return item;
         }
