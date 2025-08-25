@@ -1,5 +1,4 @@
-﻿using System.Runtime.CompilerServices;
-using CQBus.Mediator.Handlers;
+﻿using CQBus.Mediator.Handlers;
 using CQBus.Mediator.Messages;
 using CQBus.Mediator.Pipelines;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,7 +15,14 @@ internal sealed class RequestPipelineBuilder
         CancellationToken cancellationToken)
         where TRequest : IRequest<TResponse>
     {
-        IPipelineBehavior<TRequest, TResponse>[] behaviors = Unsafe.As<IPipelineBehavior<TRequest, TResponse>[]>(services.GetServices<IPipelineBehavior<TRequest, TResponse>>());
+        var enumerable = (IEnumerable<IPipelineBehavior<TRequest, TResponse>>?)
+            services.GetService(typeof(IEnumerable<IPipelineBehavior<TRequest, TResponse>>));
+
+        IPipelineBehavior<TRequest, TResponse>[] behaviors =
+            enumerable as IPipelineBehavior<TRequest, TResponse>[] ??
+            (enumerable as List<IPipelineBehavior<TRequest, TResponse>>)?.ToArray() ??
+            [];
+
         IRequestHandler<TRequest, TResponse> handler = services.GetRequiredService<IRequestHandler<TRequest, TResponse>>();
 
         if (behaviors.Length == 0)
@@ -24,14 +30,37 @@ internal sealed class RequestPipelineBuilder
             return handler.Handle(request, cancellationToken);
         }
 
-        RequestHandlerDelegate<TResponse> next = ct => handler.Handle(request, ct);
-        for (int i = behaviors.Length - 1; i >= 0; i--)
+        var chain = new Chain<TRequest, TResponse>(behaviors, handler, request);
+        return chain.Next(cancellationToken);
+    }
+
+    private sealed class Chain<TRequest, TResponse>
+        where TRequest : IRequest<TResponse>
+    {
+        private int _index;
+        private readonly IPipelineBehavior<TRequest, TResponse>[] _behaviors;
+        private readonly IRequestHandler<TRequest, TResponse> _handler;
+        private readonly TRequest _request;
+
+        internal Chain(
+            IPipelineBehavior<TRequest, TResponse>[] behaviors,
+            IRequestHandler<TRequest, TResponse> handler,
+            TRequest request)
         {
-            IPipelineBehavior<TRequest, TResponse> currentBehavior = behaviors[i];
-            RequestHandlerDelegate<TResponse> current = next;
-            next = ct => currentBehavior.Handle(request, current, ct);
+            _behaviors = behaviors;
+            _handler = handler;
+            _request = request;
         }
 
-        return next(cancellationToken);
+        public ValueTask<TResponse> Next(CancellationToken ct)
+        {
+            if (_index >= _behaviors.Length)
+            {
+                return _handler.Handle(_request, ct);
+            }
+
+            IPipelineBehavior<TRequest, TResponse> current = _behaviors[_index++];
+            return current.Handle(_request, Next, ct);
+        }
     }
 }
