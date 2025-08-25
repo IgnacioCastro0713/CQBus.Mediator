@@ -5,7 +5,7 @@
 [![NuGet](https://img.shields.io/nuget/vpre/CQBus.Mediator.svg)](https://www.nuget.org/packages/CQBus.Mediator)
 [![GitHub](https://img.shields.io/github/license/IgnacioCastro0713/CQBus.Mediator?style=flat-square)](https://github.com/IgnacioCastro0713/CQBus.Mediator/blob/main/LICENSE)
 
-CQBus.Mediator is a lightweight, extensible library for implementing the Mediator design pattern in .NET applications.
+CQBus.Mediator is a high-performance and allocation-free implementation of the Mediator pattern for .NET.
 
 ## Features
 
@@ -35,11 +35,11 @@ CQBus.Mediator is a lightweight, extensible library for implementing the Mediato
 Install via NuGet Package Manager:
 
 ```pwsh
-dotnet add package CQBus.Mediator --version 1.0.11
+dotnet add package CQBus.Mediator --version 2.0.0
 ```
 or
 ```xml
-<PackageReference Include="CQBus.Mediator" Version="1.0.11" />
+<PackageReference Include="CQBus.Mediator" Version="2.0.0" />
 ```
 
 

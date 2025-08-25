@@ -6,17 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace CQBus.Mediator.PipelineBuilders;
 
-public interface INotificationPipelineBuilder
-{
-    ValueTask Execute<TNotification>(
-        TNotification notification,
-        IServiceProvider services,
-        INotificationPublisher publisher,
-        CancellationToken cancellationToken)
-        where TNotification : INotification;
-}
-
-internal sealed class NotificationPipelineBuilder : INotificationPipelineBuilder
+internal sealed class NotificationPipelineBuilder
 {
     public static NotificationPipelineBuilder Instance { get; } = new();
 

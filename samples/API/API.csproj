@@ -14,4 +14,9 @@
 	  <ProjectReference Include="..\..\src\Mediator\Mediator.csproj" />
 	</ItemGroup>
 
+
+	<ItemGroup>
+		<InternalsVisibleTo Include="Mediator.Tests" />
+	</ItemGroup>
+
 </Project>
