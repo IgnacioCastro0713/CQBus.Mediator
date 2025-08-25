@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using CQBus.Mediator.Configurations;
 using CQBus.Mediator.NotificationPublishers;
@@ -11,8 +12,11 @@ public class MediatorConfigurationTests
     #region Mock Types for Testing
 
     // Mock types for IPipelineBehavior tests
+    [ExcludeFromCodeCoverage]
     public class MockRequest { }
+    [ExcludeFromCodeCoverage]
     public class MockResponse { }
+    [ExcludeFromCodeCoverage]
     public class MockPipelineBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse> where TRequest : notnull
     {
         public ValueTask<TResponse> Handle(TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken cancellationToken)
@@ -22,6 +26,7 @@ public class MediatorConfigurationTests
     }
 
     // Mock types for IStreamPipelineBehavior tests
+    [ExcludeFromCodeCoverage]
     public class MockStreamPipelineBehavior<TRequest, TResponse> : IStreamPipelineBehavior<TRequest, TResponse> where TRequest : notnull
     {
         public async IAsyncEnumerable<TResponse> Handle(TRequest request, StreamHandlerDelegate<TResponse> next,
@@ -35,9 +40,11 @@ public class MediatorConfigurationTests
     }
 
     // Non-generic type for negative tests
+    [ExcludeFromCodeCoverage]
     public class NonGenericType { }
 
     // Type that doesn't implement required interface for negative tests
+    [ExcludeFromCodeCoverage]
     public class TypeWithoutRequiredInterface<T1, T2> { }
 
     #endregion

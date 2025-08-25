@@ -1,8 +1,10 @@
+using System.Diagnostics.CodeAnalysis;
 using CQBus.Mediator.Pipelines;
 
 namespace Mediator.Tests.Pipelines;
 
 // A sample implementation of IPipelineBehavior<TRequest, TResponse> for testing purposes
+[ExcludeFromCodeCoverage]
 public class PipelineBehaviorTest : IPipelineBehavior<SampleRequest, string>
 {
     public async ValueTask<string> Handle(
@@ -22,12 +24,14 @@ public class PipelineBehaviorTest : IPipelineBehavior<SampleRequest, string>
 }
 
 // A sample request class for testing purposes
+[ExcludeFromCodeCoverage]
 public class SampleRequest
 {
     public string Data { get; set; }
 }
 
 // A generic implementation for testing different types
+[ExcludeFromCodeCoverage]
 public class GenericPipelineBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
     where TRequest : notnull
 {
@@ -42,6 +46,7 @@ public class GenericPipelineBehavior<TRequest, TResponse> : IPipelineBehavior<TR
 }
 
 // A generic implementation of a request for testing purposes
+[ExcludeFromCodeCoverage]
 public class TestRequest<T>
 {
     public T Data { get; set; }

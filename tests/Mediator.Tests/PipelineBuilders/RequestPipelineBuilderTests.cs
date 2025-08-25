@@ -1,185 +1,163 @@
-﻿using CQBus.Mediator.Handlers;
+﻿using System.Diagnostics.CodeAnalysis;
+using CQBus.Mediator.Handlers;
 using CQBus.Mediator.Messages;
 using CQBus.Mediator.PipelineBuilders;
 using CQBus.Mediator.Pipelines;
-using Moq;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Mediator.Tests.PipelineBuilders;
 
+
 public class RequestPipelineBuilderTests
 {
-    // Test request implementing IRequest<string>
-    public class TestRequest : IRequest<string>
-    {
-        public string Message { get; set; } = string.Empty;
-    }
+    [ExcludeFromCodeCoverage]
+    private sealed record Echo(string Text) : IRequest<string>;
 
-    // Sample pipeline behavior that adds a prefix to responses
-    public class PrefixPipelineBehavior(string prefix) : IPipelineBehavior<TestRequest, string>
+    [ExcludeFromCodeCoverage]
+    private sealed class EchoHandler : IRequestHandler<Echo, string>
     {
-        public async ValueTask<string> Handle(
-            TestRequest request,
-            RequestHandlerDelegate<string> next,
-            CancellationToken cancellationToken)
+        public int Calls;
+        public ValueTask<string> Handle(Echo request, CancellationToken cancellationToken)
         {
-            string result = await next(cancellationToken);
-            return $"{prefix}: {result}";
+            Interlocked.Increment(ref Calls);
+            return ValueTask.FromResult($"H({request.Text})");
         }
     }
 
-    // Sample pipeline behavior that adds a suffix to responses
-    public class SuffixPipelineBehavior(string suffix) : IPipelineBehavior<TestRequest, string>
+    [ExcludeFromCodeCoverage]
+
+    private sealed class B1 : IPipelineBehavior<Echo, string>
     {
-        public async ValueTask<string> Handle(
-            TestRequest request,
-            RequestHandlerDelegate<string> next,
-            CancellationToken cancellationToken)
+
+        public async ValueTask<string> Handle(Echo request, RequestHandlerDelegate<string> next, CancellationToken cancellationToken)
         {
-            string result = await next(cancellationToken);
-            return $"{result} {suffix}";
+            string inner = await next(cancellationToken);
+            return $"B1>{inner}<B1";
         }
     }
 
-    [Fact]
-    public async Task BuildAndExecute_WithNoRegisteredBehaviors_ShouldReturnHandlerResponse()
+    [ExcludeFromCodeCoverage]
+    private sealed class B2 : IPipelineBehavior<Echo, string>
     {
-        // Arrange
-        var request = new TestRequest { Message = "Test" };
-        string expectedResponse = "Handler processed: Test";
+        public async ValueTask<string> Handle(Echo request, RequestHandlerDelegate<string> next, CancellationToken cancellationToken)
+        {
+            string inner = await next(cancellationToken);
+            return $"B2>{inner}<B2";
+        }
+    }
 
-        // Mock handler
-        var handlerMock = new Mock<IRequestHandler<TestRequest, string>>();
-        handlerMock
-            .Setup(h => h.Handle(request, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(expectedResponse);
+    [ExcludeFromCodeCoverage]
+    private sealed class ShortCircuit : IPipelineBehavior<Echo, string>
+    {
+        private readonly string _value;
+        public ShortCircuit(string value) => _value = value;
 
-        // Mock service provider
-        var serviceProviderMock = new Mock<IServiceProvider>();
-        serviceProviderMock
-            .Setup(sp => sp.GetService(typeof(IRequestHandler<TestRequest, string>)))
-            .Returns(handlerMock.Object);
-        serviceProviderMock
-            .Setup(sp => sp.GetService(typeof(IEnumerable<IPipelineBehavior<TestRequest, string>>)))
-            .Returns(Array.Empty<IPipelineBehavior<TestRequest, string>>());
+        public ValueTask<string> Handle(
+            Echo request,
+            RequestHandlerDelegate<string> next,
+            CancellationToken cancellationToken)
+            => ValueTask.FromResult($"SC({_value})");
+    }
 
-        // Create pipeline builder
-        var pipelineBuilder = new RequestPipelineBuilder();
+    [ExcludeFromCodeCoverage]
+    private sealed class CancelAwareHandler : IRequestHandler<Echo, string>
+    {
+        public ValueTask<string> Handle(Echo request, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return ValueTask.FromResult(request.Text);
+        }
+    }
 
-        // Act
-        string response = await pipelineBuilder.Execute<TestRequest, string>(
-            request,
-            serviceProviderMock.Object,
-            CancellationToken.None);
-
-        // Assert
-        Assert.Equal(expectedResponse, response);
-        handlerMock.Verify(
-            h => h.Handle(request, It.IsAny<CancellationToken>()),
-            Times.Once);
+    [ExcludeFromCodeCoverage]
+    private static RequestPipelineBuilder Build(IServiceCollection sc)
+    {
+        ServiceProvider sp = sc.BuildServiceProvider(validateScopes: true);
+        return new RequestPipelineBuilder(sp);
     }
 
     [Fact]
-    public async Task BuildAndExecute_WithRegisteredBehaviors_ShouldExecuteBehaviorsInReverseOrder()
+    public async Task NoBehaviors_Calls_Handler_Directly()
     {
-        // Arrange
-        var request = new TestRequest { Message = "Test" };
-        string handlerResponse = "Handler processed: Test";
+        var handler = new EchoHandler();
 
-        // Create behaviors
-        var prefixBehavior = new PrefixPipelineBehavior("Prefix");
-        var suffixBehavior = new SuffixPipelineBehavior("Suffix");
-        var behaviors = new IPipelineBehavior<TestRequest, string>[] { prefixBehavior, suffixBehavior };
+        var sc = new ServiceCollection();
+        sc.AddSingleton<IRequestHandler<Echo, string>>(handler);
 
-        // Mock handler
-        var handlerMock = new Mock<IRequestHandler<TestRequest, string>>();
-        handlerMock
-            .Setup(h => h.Handle(request, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(handlerResponse);
+        RequestPipelineBuilder builder = Build(sc);
 
-        // Mock service provider
-        var serviceProviderMock = new Mock<IServiceProvider>();
-        serviceProviderMock
-            .Setup(sp => sp.GetService(typeof(IRequestHandler<TestRequest, string>)))
-            .Returns(handlerMock.Object);
-        serviceProviderMock
-            .Setup(sp => sp.GetService(typeof(IEnumerable<IPipelineBehavior<TestRequest, string>>)))
-            .Returns(behaviors);
+        string result = await builder.Execute<Echo, string>(new Echo("x"), CancellationToken.None);
 
-        // Create pipeline builder
-        var pipelineBuilder = new RequestPipelineBuilder();
-
-        // Act
-        string response = await pipelineBuilder.Execute<TestRequest, string>(
-            request,
-            serviceProviderMock.Object,
-            CancellationToken.None);
-
-        // Assert
-        // When executed in reverse order, suffix should be applied first, then prefix
-        // So expected result is "Prefix: Handler processed: Test Suffix"
-        Assert.Equal("Prefix: Handler processed: Test Suffix", response);
-        handlerMock.Verify(
-            h => h.Handle(request, It.IsAny<CancellationToken>()),
-            Times.Once);
+        Assert.Equal("H(x)", result);
+        Assert.Equal(1, handler.Calls);
     }
 
     [Fact]
-    public async Task BuildAndExecute_ShouldPassCancellationTokenToHandler()
+    public async Task TwoBehaviors_Run_In_Registration_Order()
     {
-        // Arrange
-        var request = new TestRequest { Message = "Test" };
-        CancellationToken cancellationToken = CancellationToken.None;
+        var handler = new EchoHandler();
 
-        // Mock handler
-        var handlerMock = new Mock<IRequestHandler<TestRequest, string>>();
-        handlerMock
-            .Setup(h => h.Handle(request, cancellationToken))
-            .ReturnsAsync("Response");
+        var sc = new ServiceCollection();
+        sc.AddSingleton<IRequestHandler<Echo, string>>(handler);
 
-        // Mock service provider
-        var serviceProviderMock = new Mock<IServiceProvider>();
-        serviceProviderMock
-            .Setup(sp => sp.GetService(typeof(IRequestHandler<TestRequest, string>)))
-            .Returns(handlerMock.Object);
-        serviceProviderMock
-            .Setup(sp => sp.GetService(typeof(IEnumerable<IPipelineBehavior<TestRequest, string>>)))
-            .Returns(Array.Empty<IPipelineBehavior<TestRequest, string>>());
+        sc.AddSingleton<IPipelineBehavior<Echo, string>, B1>();
+        sc.AddSingleton<IPipelineBehavior<Echo, string>, B2>();
 
-        // Create pipeline builder
-        var pipelineBuilder = new RequestPipelineBuilder();
+        RequestPipelineBuilder builder = Build(sc);
 
-        // Act
-        await pipelineBuilder.Execute<TestRequest, string>(
-            request,
-            serviceProviderMock.Object,
-            cancellationToken);
+        string result = await builder.Execute<Echo, string>(new Echo("x"), CancellationToken.None);
 
-        // Assert
-        handlerMock.Verify(
-            h => h.Handle(request, cancellationToken),
-            Times.Once);
+        Assert.Equal("B1>B2>H(x)<B2<B1", result);
+        Assert.Equal(1, handler.Calls);
     }
 
     [Fact]
-    public async Task BuildAndExecute_ShouldThrowServiceNotFoundException_WhenHandlerNotRegistered()
+    public async Task Behavior_ShortCircuits_Handler_Is_Not_Called()
     {
-        // Arrange
-        var request = new TestRequest { Message = "Test" };
+        var handler = new EchoHandler();
 
-        // Mock service provider to return null for handler
-        var serviceProviderMock = new Mock<IServiceProvider>();
-        serviceProviderMock
-            .Setup(sp => sp.GetService(typeof(IRequestHandler<TestRequest, string>)))
-            .Returns(null!);
+        var sc = new ServiceCollection();
+        sc.AddSingleton<IRequestHandler<Echo, string>>(handler);
 
-        // Create pipeline builder
-        var pipelineBuilder = new RequestPipelineBuilder();
+        sc.AddSingleton<IPipelineBehavior<Echo, string>>(new ShortCircuit("stop"));
+        sc.AddSingleton<IPipelineBehavior<Echo, string>, B1>();
 
-        // Act & Assert
-        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await pipelineBuilder.Execute<TestRequest, string>(
-                request,
-                serviceProviderMock.Object,
-                CancellationToken.None));
+        RequestPipelineBuilder builder = Build(sc);
+
+        string result = await builder.Execute<Echo, string>(new Echo("x"), CancellationToken.None);
+
+        Assert.Equal("SC(stop)", result);
+        Assert.Equal(0, handler.Calls);
+    }
+
+    [Fact]
+    public async Task Cancellation_Propagates_To_Handler()
+    {
+        var sc = new ServiceCollection();
+        sc.AddSingleton<IRequestHandler<Echo, string>, CancelAwareHandler>();
+
+        RequestPipelineBuilder builder = Build(sc);
+
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        await Assert.ThrowsAsync<OperationCanceledException>(async () => _ = await builder.Execute<Echo, string>(new Echo("y"), cts.Token));
+    }
+
+    [Fact]
+    public async Task Works_With_Single_Behavior()
+    {
+        var handler = new EchoHandler();
+
+        var sc = new ServiceCollection();
+        sc.AddSingleton<IRequestHandler<Echo, string>>(handler);
+        sc.AddSingleton<IPipelineBehavior<Echo, string>, B2>();
+
+        RequestPipelineBuilder builder = Build(sc);
+
+        string result = await builder.Execute<Echo, string>(new Echo("z"), CancellationToken.None);
+
+        Assert.Equal("B2>H(z)<B2", result);
+        Assert.Equal(1, handler.Calls);
     }
 }

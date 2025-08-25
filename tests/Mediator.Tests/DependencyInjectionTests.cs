@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
 using CQBus.Mediator;
 using CQBus.Mediator.Handlers;
 using CQBus.Mediator.Messages;
@@ -12,9 +13,11 @@ public class DependencyInjectionTests
 {
     #region Test Types
     // Sample request class
+    [ExcludeFromCodeCoverage]
     public class TestRequest : IRequest<string> { }
 
     // Sample request handler
+    [ExcludeFromCodeCoverage]
     public class TestRequestHandler : IRequestHandler<TestRequest, string>
     {
         public ValueTask<string> Handle(TestRequest request, CancellationToken cancellationToken)
@@ -22,9 +25,11 @@ public class DependencyInjectionTests
     }
 
     // Sample notification
+    [ExcludeFromCodeCoverage]
     public class TestNotification : INotification { }
 
     // Sample notification handler
+    [ExcludeFromCodeCoverage]
     public class TestNotificationHandler : INotificationHandler<TestNotification>
     {
         public ValueTask Handle(TestNotification notification, CancellationToken cancellationToken)
@@ -32,9 +37,11 @@ public class DependencyInjectionTests
     }
 
     // Sample stream request
+    [ExcludeFromCodeCoverage]
     public class TestStreamRequest : IStreamRequest<int> { }
 
     // Sample stream request handler
+    [ExcludeFromCodeCoverage]
     public class TestStreamRequestHandler : IStreamRequestHandler<TestStreamRequest, int>
     {
         public async IAsyncEnumerable<int> Handle(TestStreamRequest request,
@@ -47,6 +54,7 @@ public class DependencyInjectionTests
     }
 
     // Sample pipeline behavior
+    [ExcludeFromCodeCoverage]
     public class TestPipelineBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
         where TRequest : notnull
     {
@@ -58,6 +66,7 @@ public class DependencyInjectionTests
     }
 
     // Sample stream pipeline behavior
+    [ExcludeFromCodeCoverage]
     public class TestStreamPipelineBehavior<TRequest, TResponse> : IStreamPipelineBehavior<TRequest, TResponse>
         where TRequest : notnull
     {
@@ -72,6 +81,7 @@ public class DependencyInjectionTests
     }
 
     // Custom notification publisher
+    [ExcludeFromCodeCoverage]
     public class TestPublisher : INotificationPublisher
     {
         public ValueTask Publish<TNotification>(

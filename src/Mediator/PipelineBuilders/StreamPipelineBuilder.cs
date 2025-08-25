@@ -6,25 +6,31 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace CQBus.Mediator.PipelineBuilders;
 
-internal sealed class StreamPipelineBuilder
+public interface IStreamPipelineBuilder
 {
-    public static StreamPipelineBuilder Instance { get; } = new();
+    IAsyncEnumerable<TResponse> Execute<TRequest, TResponse>(
+        TRequest request,
+        CancellationToken cancellationToken)
+        where TRequest : IStreamRequest<TResponse>;
+}
+
+internal sealed class StreamPipelineBuilder(IServiceProvider serviceProvider) : IStreamPipelineBuilder
+{
 
     public async IAsyncEnumerable<TResponse> Execute<TRequest, TResponse>(
         TRequest request,
-        IServiceProvider services,
         [EnumeratorCancellation] CancellationToken cancellationToken)
         where TRequest : IStreamRequest<TResponse>
     {
-        var enumerable = (IEnumerable<IStreamPipelineBehavior<TRequest, TResponse>>?)
-            services.GetService(typeof(IEnumerable<IStreamPipelineBehavior<TRequest, TResponse>>));
+        IEnumerable<IStreamPipelineBehavior<TRequest, TResponse>> enumerable = serviceProvider.GetServices<IStreamPipelineBehavior<TRequest, TResponse>>();
+        IStreamPipelineBehavior<TRequest, TResponse>[] behaviors = enumerable switch
+        {
+            IStreamPipelineBehavior<TRequest, TResponse>[] arr => arr,
+            List<IStreamPipelineBehavior<TRequest, TResponse>> list => list.ToArray(),
+            _ => enumerable.ToArray()
+        };
 
-        IStreamPipelineBehavior<TRequest, TResponse>[] behaviors =
-            enumerable as IStreamPipelineBehavior<TRequest, TResponse>[] ??
-            (enumerable as List<IStreamPipelineBehavior<TRequest, TResponse>>)?.ToArray() ??
-            [];
-
-        IStreamRequestHandler<TRequest, TResponse> handler = services.GetRequiredService<IStreamRequestHandler<TRequest, TResponse>>();
+        IStreamRequestHandler<TRequest, TResponse> handler = serviceProvider.GetRequiredService<IStreamRequestHandler<TRequest, TResponse>>();
 
         if (behaviors.Length == 0)
         {

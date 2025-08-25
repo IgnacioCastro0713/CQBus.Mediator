@@ -5,25 +5,30 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace CQBus.Mediator.PipelineBuilders;
 
-internal sealed class RequestPipelineBuilder
+public interface IRequestPipelineBuilder
 {
-    public static RequestPipelineBuilder Instance { get; } = new();
+    ValueTask<TResponse> Execute<TRequest, TResponse>(
+        TRequest request,
+        CancellationToken cancellationToken)
+        where TRequest : IRequest<TResponse>;
+}
 
+internal sealed class RequestPipelineBuilder(IServiceProvider serviceProvider) : IRequestPipelineBuilder
+{
     public ValueTask<TResponse> Execute<TRequest, TResponse>(
         TRequest request,
-        IServiceProvider services,
         CancellationToken cancellationToken)
         where TRequest : IRequest<TResponse>
     {
-        var enumerable = (IEnumerable<IPipelineBehavior<TRequest, TResponse>>?)
-            services.GetService(typeof(IEnumerable<IPipelineBehavior<TRequest, TResponse>>));
+        IEnumerable<IPipelineBehavior<TRequest, TResponse>> enumerable = serviceProvider.GetServices<IPipelineBehavior<TRequest, TResponse>>();
+        IPipelineBehavior<TRequest, TResponse>[] behaviors = enumerable switch
+        {
+            IPipelineBehavior<TRequest, TResponse>[] arr => arr,
+            List<IPipelineBehavior<TRequest, TResponse>> list => list.ToArray(),
+            _ => enumerable.ToArray()
+        };
 
-        IPipelineBehavior<TRequest, TResponse>[] behaviors =
-            enumerable as IPipelineBehavior<TRequest, TResponse>[] ??
-            (enumerable as List<IPipelineBehavior<TRequest, TResponse>>)?.ToArray() ??
-            [];
-
-        IRequestHandler<TRequest, TResponse> handler = services.GetRequiredService<IRequestHandler<TRequest, TResponse>>();
+        IRequestHandler<TRequest, TResponse> handler = serviceProvider.GetRequiredService<IRequestHandler<TRequest, TResponse>>();
 
         if (behaviors.Length == 0)
         {

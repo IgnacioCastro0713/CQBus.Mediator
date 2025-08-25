@@ -1,23 +1,34 @@
-﻿using System.Runtime.CompilerServices;
-using CQBus.Mediator.Handlers;
+﻿using CQBus.Mediator.Handlers;
 using CQBus.Mediator.Messages;
 using CQBus.Mediator.NotificationPublishers;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace CQBus.Mediator.PipelineBuilders;
 
-internal sealed class NotificationPipelineBuilder
+public interface INotificationPipelineBuilder
 {
-    public static NotificationPipelineBuilder Instance { get; } = new();
+    ValueTask Execute<TNotification>(
+        TNotification notification,
+        INotificationPublisher publisher,
+        CancellationToken cancellationToken)
+        where TNotification : INotification;
+}
 
+internal sealed class NotificationPipelineBuilder(IServiceProvider serviceProvider) : INotificationPipelineBuilder
+{
     public ValueTask Execute<TNotification>(
         TNotification notification,
-        IServiceProvider services,
         INotificationPublisher publisher,
         CancellationToken cancellationToken)
         where TNotification : INotification
     {
-        INotificationHandler<TNotification>[] handlers = Unsafe.As<INotificationHandler<TNotification>[]>(services.GetServices<INotificationHandler<TNotification>>());
+        IEnumerable<INotificationHandler<TNotification>> enumerable = serviceProvider.GetServices<INotificationHandler<TNotification>>();
+        INotificationHandler<TNotification>[] handlers = enumerable switch
+        {
+            INotificationHandler<TNotification>[] arr => arr,
+            List<INotificationHandler<TNotification>> list => list.ToArray(),
+            _ => enumerable.ToArray()
+        };
 
         return publisher.Publish(handlers, notification, cancellationToken);
     }

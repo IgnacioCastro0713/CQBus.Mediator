@@ -1,206 +1,167 @@
-﻿using CQBus.Mediator.Handlers;
+﻿using System.Diagnostics.CodeAnalysis;
+using CQBus.Mediator.Handlers;
 using CQBus.Mediator.Messages;
 using CQBus.Mediator.NotificationPublishers;
 using CQBus.Mediator.PipelineBuilders;
 using Microsoft.Extensions.DependencyInjection;
-using Moq;
 
 namespace Mediator.Tests.PipelineBuilders;
 
-public class NotificationPipelineBuilderTests
+public sealed class NotificationPipelineBuilderTests
 {
-    // Test notification class
-    public record TestNotification(string Message) : INotification;
+    [ExcludeFromCodeCoverage]
+    private sealed record Notice(string Text) : INotification;
 
-    // Test notification handler implementation
-    public class TestNotificationHandler(List<string> receivedMessages) : INotificationHandler<TestNotification>
+    [ExcludeFromCodeCoverage]
+    private sealed class HandlerA : INotificationHandler<Notice>
     {
-        public ValueTask Handle(TestNotification notification, CancellationToken cancellationToken)
+        public int Calls { get; private set; }
+
+        public ValueTask Handle(Notice notification, CancellationToken cancellationToken)
         {
-            receivedMessages.Add($"Handler received: {notification.Message}");
+            Calls += 1;
             return ValueTask.CompletedTask;
         }
     }
 
-    // Second notification handler for testing multiple handlers
-    public class SecondTestNotificationHandler(List<string> receivedMessages) : INotificationHandler<TestNotification>
+    [ExcludeFromCodeCoverage]
+    private sealed class HandlerB : INotificationHandler<Notice>
     {
-        public ValueTask Handle(TestNotification notification, CancellationToken cancellationToken)
+        public int Calls { get; private set; }
+
+        public ValueTask Handle(Notice notification, CancellationToken cancellationToken)
         {
-            receivedMessages.Add($"Second handler received: {notification.Message}");
+            Calls += 1;
             return ValueTask.CompletedTask;
         }
     }
 
-    [Fact]
-    public void BuildAndExecute_WithNoHandlers_ShouldReturnDefaultValueTask()
+    [ExcludeFromCodeCoverage]
+    private sealed class CapturingPublisher : INotificationPublisher
     {
-        // Arrange
-        var services = new ServiceCollection();
-        ServiceProvider serviceProvider = services.BuildServiceProvider();
-        var publisherMock = new Mock<INotificationPublisher>();
-        var notification = new TestNotification("No handlers test");
-        NotificationPipelineBuilder pipelineBuilder = NotificationPipelineBuilder.Instance;
+        public object? LastNotification { get; private set; }
+        public Array? LastHandlersArray { get; private set; }
+        public CancellationToken LastToken { get; private set; }
+        public int Calls { get; private set; }
 
-        // Act
-        ValueTask result = pipelineBuilder.Execute(notification, serviceProvider, publisherMock.Object, CancellationToken.None);
-
-        // Assert
-        Assert.Equal(default, result);
-        publisherMock.Verify(
-            p => p.Publish(
-                It.IsAny<INotificationHandler<TestNotification>[]>(),
-                It.IsAny<TestNotification>(),
-                It.IsAny<CancellationToken>()),
-            Times.Once);
-    }
-
-    [Fact]
-    public async Task BuildAndExecute_WithSingleHandler_ShouldCallHandleDirectly()
-    {
-        // Arrange
-        var services = new ServiceCollection();
-        var receivedMessages = new List<string>();
-
-        // Register single handler
-        services.AddTransient<INotificationHandler<TestNotification>>(_ => new TestNotificationHandler(receivedMessages));
-
-        ServiceProvider serviceProvider = services.BuildServiceProvider();
-        var publisherMock = new Mock<INotificationPublisher>();
-        var notification = new TestNotification("Single handler test");
-        var pipelineBuilder = new NotificationPipelineBuilder();
-
-        // Setup publisher to actually execute handlers
-        publisherMock
-            .Setup(p => p.Publish(It.IsAny<INotificationHandler<TestNotification>[]>(),
-                It.IsAny<TestNotification>(), It.IsAny<CancellationToken>()))
-            .Returns(async (IEnumerable<INotificationHandler<TestNotification>> handlers, TestNotification n, CancellationToken ct) =>
-            {
-                foreach (INotificationHandler<TestNotification> handler in handlers)
-                {
-                    await handler.Handle(n, ct);
-                }
-            });
-
-        // Act
-        await pipelineBuilder.Execute(notification, serviceProvider, publisherMock.Object, CancellationToken.None);
-
-        // Assert
-        Assert.Single(receivedMessages);
-        Assert.Equal("Handler received: Single handler test", receivedMessages[0]);
-        publisherMock.Verify(
-            p => p.Publish(
-                It.Is<INotificationHandler<TestNotification>[]>(h => h.Length == 1),
-                It.Is<TestNotification>(n => n.Message == "Single handler test"),
-                It.IsAny<CancellationToken>()),
-            Times.Once);
-    }
-
-    [Fact]
-    public async Task BuildAndExecute_ShouldResolveHandlersFromServiceProvider()
-    {
-        // Arrange
-        var services = new ServiceCollection();
-        var receivedMessages = new List<string>();
-
-        // Register handlers
-        services.AddTransient<INotificationHandler<TestNotification>>(_ => new TestNotificationHandler(receivedMessages));
-        services.AddTransient<INotificationHandler<TestNotification>>(_ => new SecondTestNotificationHandler(receivedMessages));
-
-        ServiceProvider serviceProvider = services.BuildServiceProvider();
-        var publisherMock = new Mock<INotificationPublisher>();
-        var notification = new TestNotification("Test notification");
-
-        // Setup publisher to actually execute handlers
-        publisherMock
-            .Setup(p => p.Publish(It.IsAny<INotificationHandler<TestNotification>[]>(),
-                   It.IsAny<TestNotification>(), It.IsAny<CancellationToken>()))
-            .Returns((IEnumerable<INotificationHandler<TestNotification>> handlers, TestNotification n, CancellationToken ct) =>
-            {
-                IEnumerable<Task> tasks = handlers.Select(h => h.Handle(n, ct).AsTask());
-                return new ValueTask(Task.WhenAll(tasks));
-            });
-
-        var pipelineBuilder = new NotificationPipelineBuilder();
-
-        // Act
-        await pipelineBuilder.Execute(notification, serviceProvider, publisherMock.Object, CancellationToken.None);
-
-        // Assert
-        Assert.Equal(2, receivedMessages.Count);
-        Assert.Contains("Handler received: Test notification", receivedMessages);
-        Assert.Contains("Second handler received: Test notification", receivedMessages);
-    }
-
-    [Fact]
-    public async Task BuildAndExecute_ShouldWorkWithRealPublisher()
-    {
-        // Arrange
-        var services = new ServiceCollection();
-        var receivedMessages = new List<string>();
-
-        // Register handlers
-        services.AddTransient<INotificationHandler<TestNotification>>(_ => new TestNotificationHandler(receivedMessages));
-        services.AddTransient<INotificationHandler<TestNotification>>(_ => new SecondTestNotificationHandler(receivedMessages));
-
-        ServiceProvider serviceProvider = services.BuildServiceProvider();
-        var publisher = new ForeachAwaitPublisher(); // Real publisher implementation
-        var notification = new TestNotification("Real publisher test");
-
-        var pipelineBuilder = new NotificationPipelineBuilder();
-
-        // Act
-        await pipelineBuilder.Execute(notification, serviceProvider, publisher, CancellationToken.None);
-
-        // Assert
-        Assert.Equal(2, receivedMessages.Count);
-        Assert.Contains("Handler received: Real publisher test", receivedMessages);
-        Assert.Contains("Second handler received: Real publisher test", receivedMessages);
-    }
-
-    [Fact]
-    public async Task BuildAndExecute_ShouldOrderHandlersCorrectly()
-    {
-        // Arrange
-        var services = new ServiceCollection();
-        var executionOrder = new List<string>();
-
-        // Create handlers that record execution order
-        services.AddTransient<INotificationHandler<TestNotification>>(_ =>
-            new OrderedNotificationHandler(executionOrder, "First", 100));
-        services.AddTransient<INotificationHandler<TestNotification>>(_ =>
-            new OrderedNotificationHandler(executionOrder, "Second", 50));
-        services.AddTransient<INotificationHandler<TestNotification>>(_ =>
-            new OrderedNotificationHandler(executionOrder, "Third", 0));
-
-        ServiceProvider serviceProvider = services.BuildServiceProvider();
-        var publisher = new ForeachAwaitPublisher();
-        var notification = new TestNotification("Order test");
-
-        var pipelineBuilder = new NotificationPipelineBuilder();
-
-        // Act
-        await pipelineBuilder.Execute(notification, serviceProvider, publisher, CancellationToken.None);
-
-        // Assert
-        Assert.Equal(3, executionOrder.Count);
-        Assert.Equal("First", executionOrder[0]);
-        Assert.Equal("Second", executionOrder[1]);
-        Assert.Equal("Third", executionOrder[2]);
-    }
-
-    // Helper class for testing execution order
-    public sealed class OrderedNotificationHandler(List<string> executionOrder, string name, int delayMs)
-        : INotificationHandler<TestNotification>
-    {
-        public async ValueTask Handle(TestNotification notification, CancellationToken cancellationToken)
+        public ValueTask Publish<TNotification>(
+            INotificationHandler<TNotification>[] handlers,
+            TNotification notification,
+            CancellationToken cancellationToken)
+            where TNotification : INotification
         {
-            if (delayMs > 0)
-            {
-                await Task.Delay(delayMs, cancellationToken);
-            }
-
-            executionOrder.Add(name);
+            Calls += 1;
+            LastNotification = notification!;
+            LastHandlersArray = handlers;
+            LastToken = cancellationToken;
+            return ValueTask.CompletedTask;
         }
+    }
+
+    [ExcludeFromCodeCoverage]
+    private static NotificationPipelineBuilder Build(IServiceProvider serviceProvider)
+    {
+        return new NotificationPipelineBuilder(serviceProvider);
+    }
+
+
+    [Fact]
+    public async Task NoHandlers_Passes_EmptyArray_To_Publisher()
+    {
+        var services = new ServiceCollection();
+
+        var publisher = new CapturingPublisher();
+        services.AddSingleton<INotificationPublisher>(publisher);
+
+        ServiceProvider sp = services.BuildServiceProvider(validateScopes: true);
+        NotificationPipelineBuilder builder = Build(sp);
+
+        var notification = new Notice("x");
+
+        await builder.Execute(notification, publisher, CancellationToken.None);
+
+        Assert.Equal(1, publisher.Calls);
+        Assert.Same(notification, publisher.LastNotification);
+        Assert.NotNull(publisher.LastHandlersArray);
+        Assert.Empty(publisher.LastHandlersArray);
+        Assert.False(publisher.LastToken.IsCancellationRequested);
+    }
+
+    [Fact]
+    public async Task MultipleHandlers_Are_Passed_In_Registration_Order()
+    {
+        var services = new ServiceCollection();
+
+        var a = new HandlerA();
+        var b = new HandlerB();
+        var publisher = new CapturingPublisher();
+
+        services.AddSingleton<INotificationHandler<Notice>>(a);
+        services.AddSingleton<INotificationHandler<Notice>>(b);
+        services.AddSingleton<INotificationPublisher>(publisher);
+
+        ServiceProvider sp = services.BuildServiceProvider(validateScopes: true);
+        NotificationPipelineBuilder builder = Build(sp);
+
+        var notification = new Notice("hello");
+
+        await builder.Execute(notification, publisher, CancellationToken.None);
+
+        Assert.Equal(1, publisher.Calls);
+        Assert.NotNull(publisher.LastHandlersArray);
+        Assert.Equal(2, publisher.LastHandlersArray!.Length);
+
+        INotificationHandler<Notice>[] typed = publisher.LastHandlersArray.Cast<INotificationHandler<Notice>>()
+            .ToArray();
+        Assert.IsType<INotificationHandler<Notice>[]>(typed);
+        Assert.Same(a, typed[0]);
+        Assert.Same(b, typed[1]);
+    }
+
+    [Fact]
+    public async Task CancellationToken_Is_Forwarded_To_Publisher()
+    {
+        var services = new ServiceCollection();
+
+        var publisher = new CapturingPublisher();
+        services.AddSingleton<INotificationPublisher>(publisher);
+
+        ServiceProvider sp = services.BuildServiceProvider(validateScopes: true);
+        NotificationPipelineBuilder builder = Build(sp);
+
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        await builder.Execute(new Notice("y"), publisher, cts.Token);
+
+        Assert.True(publisher.LastToken.IsCancellationRequested);
+    }
+
+    [Fact]
+    public async Task ScopedHandlers_Are_Resolved_From_Scope()
+    {
+        var services = new ServiceCollection();
+
+        var publisher = new CapturingPublisher();
+        services.AddScoped<INotificationHandler<Notice>, HandlerA>();
+        services.AddScoped<INotificationHandler<Notice>, HandlerB>();
+        services.AddSingleton<INotificationPublisher>(publisher);
+
+        ServiceProvider root = services.BuildServiceProvider(validateScopes: true);
+        using IServiceScope scope = root.CreateScope();
+
+        NotificationPipelineBuilder builder = Build(scope.ServiceProvider);
+
+        var notification = new Notice("z");
+
+        await builder.Execute(notification, publisher, CancellationToken.None);
+
+        Assert.Equal(2, publisher.LastHandlersArray!.Length);
+
+        INotificationHandler<Notice>[] typed = publisher.LastHandlersArray!.Cast<INotificationHandler<Notice>>()
+            .ToArray();
+        Assert.IsType<HandlerA>(typed[0]);
+        Assert.IsType<HandlerB>(typed[1]);
+        Assert.NotSame(typed[0], typed[1]);
     }
 }

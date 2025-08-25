@@ -1,330 +1,265 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 using CQBus.Mediator.Handlers;
 using CQBus.Mediator.Messages;
 using CQBus.Mediator.PipelineBuilders;
 using CQBus.Mediator.Pipelines;
-using Moq;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Mediator.Tests.PipelineBuilders;
 
-public class StreamPipelineBuilderTests
+public sealed class StreamPipelineBuilderTests
 {
-    // Test request class implementing IStreamRequest<string>
-    public class TestStreamRequest : IStreamRequest<string>
-    {
-        public string Value { get; set; } = string.Empty;
-    }
+    [ExcludeFromCodeCoverage]
+    private sealed record Range(int Count) : IStreamRequest<int>;
 
-    // Test handler implementation that returns a simple stream of strings
-    public class TestStreamRequestHandler : IStreamRequestHandler<TestStreamRequest, string>
+    private sealed class RangeHandler : IStreamRequestHandler<Range, int>
     {
-        public async IAsyncEnumerable<string> Handle(
-            TestStreamRequest request,
+        public async IAsyncEnumerable<int> Handle(Range request,
             [EnumeratorCancellation] CancellationToken cancellationToken)
         {
-            yield return $"Response1: {request.Value}";
-            await Task.Delay(10, cancellationToken);
-            yield return $"Response2: {request.Value}";
-            await Task.Delay(10, cancellationToken);
-            yield return $"Response3: {request.Value}";
-        }
-    }
-
-    // Test pipeline behavior that adds a prefix to each item
-    public class PrefixStreamBehavior(string prefix) : IStreamPipelineBehavior<TestStreamRequest, string>
-    {
-        public async IAsyncEnumerable<string> Handle(
-            TestStreamRequest request,
-            StreamHandlerDelegate<string> next,
-            [EnumeratorCancellation] CancellationToken cancellationToken)
-        {
-            IAsyncEnumerable<string> result = next(cancellationToken);
-
-            await foreach (string item in result.WithCancellation(cancellationToken))
+            for (int i = 0; i < request.Count; i++)
             {
-                yield return $"{prefix} | {item}";
+                cancellationToken.ThrowIfCancellationRequested();
+                yield return i;
+                await Task.Yield();
             }
         }
     }
 
-    // Test pipeline behavior that adds a suffix to each item
-    public class SuffixStreamBehavior(string suffix) : IStreamPipelineBehavior<TestStreamRequest, string>
+    [ExcludeFromCodeCoverage]
+    private sealed class B1 : IStreamPipelineBehavior<Range, int>
     {
-        public async IAsyncEnumerable<string> Handle(
-            TestStreamRequest request,
-            StreamHandlerDelegate<string> next,
+        public async IAsyncEnumerable<int> Handle(
+            Range _,
+            StreamHandlerDelegate<int> next,
             [EnumeratorCancellation] CancellationToken cancellationToken)
         {
-            IAsyncEnumerable<string> result = next(cancellationToken);
-
-            await foreach (string item in result.WithCancellation(cancellationToken))
+            await foreach (int item in next(cancellationToken).ConfigureAwait(false))
             {
-                yield return $"{item} | {suffix}";
+                yield return item + 1;
             }
         }
     }
 
-    // Helper method to generate a mock stream result
-    private static async IAsyncEnumerable<string> GetTestStream(
-        string prefix,
-        [EnumeratorCancellation] CancellationToken cancellationToken)
+    [ExcludeFromCodeCoverage]
+    private sealed class B2 : IStreamPipelineBehavior<Range, int>
     {
-        for (int i = 1; i <= 3; i++)
+        public async IAsyncEnumerable<int> Handle(
+            Range _,
+            StreamHandlerDelegate<int> next,
+            [EnumeratorCancellation] CancellationToken cancellationToken)
         {
-            yield return $"{prefix} Item {i}";
-            await Task.Delay(10, cancellationToken);
-        }
-    }
-
-    [Fact]
-    public async Task BuildAndExecute_WithNoRegisteredBehaviors_ShouldReturnHandlerResponse()
-    {
-        // Arrange
-        var request = new TestStreamRequest { Value = "Test" };
-
-        // Mock handler
-        var handlerMock = new Mock<IStreamRequestHandler<TestStreamRequest, string>>();
-        handlerMock
-            .Setup(h => h.Handle(request, It.IsAny<CancellationToken>()))
-            .Returns((TestStreamRequest req, CancellationToken ct) => GetTestStream("Handler", ct));
-
-        // Mock service provider
-        var serviceProviderMock = new Mock<IServiceProvider>();
-        serviceProviderMock
-            .Setup(sp => sp.GetService(typeof(IStreamRequestHandler<TestStreamRequest, string>)))
-            .Returns(handlerMock.Object);
-        serviceProviderMock
-            .Setup(sp => sp.GetService(typeof(IEnumerable<IStreamPipelineBehavior<TestStreamRequest, string>>)))
-            .Returns(Array.Empty<IStreamPipelineBehavior<TestStreamRequest, string>>());
-
-        // Create pipeline builder
-        var pipelineBuilder = new StreamPipelineBuilder();
-
-        // Act
-        var results = new List<string>();
-        await foreach (string item in pipelineBuilder.Execute<TestStreamRequest, string>(
-            request,
-            serviceProviderMock.Object,
-            CancellationToken.None))
-        {
-            results.Add(item);
-        }
-
-        // Assert
-        Assert.Equal(3, results.Count);
-        Assert.Equal("Handler Item 1", results[0]);
-        Assert.Equal("Handler Item 2", results[1]);
-        Assert.Equal("Handler Item 3", results[2]);
-        handlerMock.Verify(
-            h => h.Handle(request, It.IsAny<CancellationToken>()),
-            Times.Once);
-    }
-
-    [Fact]
-    public async Task BuildAndExecute_WithRegisteredBehaviors_ShouldExecuteBehaviorsInReverseOrder()
-    {
-        // Arrange
-        var request = new TestStreamRequest { Value = "Test" };
-
-        // Create behaviors
-        var prefixBehavior = new PrefixStreamBehavior("Prefix");
-        var suffixBehavior = new SuffixStreamBehavior("Suffix");
-        var behaviors = new IStreamPipelineBehavior<TestStreamRequest, string>[] { prefixBehavior, suffixBehavior };
-
-        // Mock handler
-        var handlerMock = new Mock<IStreamRequestHandler<TestStreamRequest, string>>();
-        handlerMock
-            .Setup(h => h.Handle(request, It.IsAny<CancellationToken>()))
-            .Returns((TestStreamRequest req, CancellationToken ct) => GetTestStream("Handler", ct));
-
-        // Mock service provider
-        var serviceProviderMock = new Mock<IServiceProvider>();
-        serviceProviderMock
-            .Setup(sp => sp.GetService(typeof(IStreamRequestHandler<TestStreamRequest, string>)))
-            .Returns(handlerMock.Object);
-        serviceProviderMock
-            .Setup(sp => sp.GetService(typeof(IEnumerable<IStreamPipelineBehavior<TestStreamRequest, string>>)))
-            .Returns(behaviors);
-
-        // Create pipeline builder
-        var pipelineBuilder = new StreamPipelineBuilder();
-
-        // Act
-        var results = new List<string>();
-        await foreach (string item in pipelineBuilder.Execute<TestStreamRequest, string>(
-            request,
-            serviceProviderMock.Object,
-            CancellationToken.None))
-        {
-            results.Add(item);
-        }
-
-        // Assert
-        Assert.Equal(3, results.Count);
-        // The behaviors should be applied in reverse order (suffix first, then prefix)
-        Assert.Equal("Prefix | Handler Item 1 | Suffix", results[0]);
-        Assert.Equal("Prefix | Handler Item 2 | Suffix", results[1]);
-        Assert.Equal("Prefix | Handler Item 3 | Suffix", results[2]);
-        handlerMock.Verify(
-            h => h.Handle(request, It.IsAny<CancellationToken>()),
-            Times.Once);
-    }
-
-    [Fact]
-    public async Task BuildAndExecute_ShouldPassCancellationTokenToHandlerAndBehaviors()
-    {
-        // Arrange
-        var request = new TestStreamRequest { Value = "Test" };
-        CancellationToken cancellationToken = new CancellationTokenSource().Token;
-
-        // Mock handler
-        var handlerMock = new Mock<IStreamRequestHandler<TestStreamRequest, string>>();
-        handlerMock
-            .Setup(h => h.Handle(request, cancellationToken))
-            .Returns((TestStreamRequest req, CancellationToken ct) => GetTestStream("Handler", ct));
-
-        // Mock service provider
-        var serviceProviderMock = new Mock<IServiceProvider>();
-        serviceProviderMock
-            .Setup(sp => sp.GetService(typeof(IStreamRequestHandler<TestStreamRequest, string>)))
-            .Returns(handlerMock.Object);
-        serviceProviderMock
-            .Setup(sp => sp.GetService(typeof(IEnumerable<IStreamPipelineBehavior<TestStreamRequest, string>>)))
-            .Returns(Array.Empty<IStreamPipelineBehavior<TestStreamRequest, string>>());
-
-        // Create pipeline builder
-        var pipelineBuilder = new StreamPipelineBuilder();
-
-        // Act
-        var results = new List<string>();
-        await foreach (string item in pipelineBuilder.Execute<TestStreamRequest, string>(
-            request,
-            serviceProviderMock.Object,
-            cancellationToken))
-        {
-            results.Add(item);
-        }
-
-        // Assert
-        Assert.Equal(3, results.Count);
-        handlerMock.Verify(
-            h => h.Handle(request, cancellationToken),
-            Times.Once);
-    }
-
-    [Fact]
-    public async Task BuildAndExecute_ShouldRespectCancellation()
-    {
-        // Arrange
-        var request = new TestStreamRequest { Value = "Test" };
-        var cts = new CancellationTokenSource();
-
-        // Create a handler that will check for cancellation
-        var handler = new TestStreamRequestHandler();
-
-        // Mock service provider
-        var serviceProviderMock = new Mock<IServiceProvider>();
-        serviceProviderMock
-            .Setup(sp => sp.GetService(typeof(IStreamRequestHandler<TestStreamRequest, string>)))
-            .Returns(handler);
-        serviceProviderMock
-            .Setup(sp => sp.GetService(typeof(IEnumerable<IStreamPipelineBehavior<TestStreamRequest, string>>)))
-            .Returns(Array.Empty<IStreamPipelineBehavior<TestStreamRequest, string>>());
-
-        // Create pipeline builder
-        var pipelineBuilder = new StreamPipelineBuilder();
-
-        // Act & Assert
-        var results = new List<string>();
-        Exception? exception = await Record.ExceptionAsync(async () =>
-        {
-            await foreach (string item in pipelineBuilder.Execute<TestStreamRequest, string>(
-                request,
-                serviceProviderMock.Object,
-                cts.Token))
+            await foreach (int item in next(cancellationToken).ConfigureAwait(false))
             {
-                results.Add(item);
-                if (results.Count == 1)
-                {
-                    await cts.CancelAsync();
-                }
+                yield return item * 10;
+            }
+        }
+    }
+
+    [ExcludeFromCodeCoverage]
+    private sealed class ShortCircuit : IStreamPipelineBehavior<Range, int>
+    {
+        private readonly int _value;
+
+        public ShortCircuit(int value) => _value = value;
+
+        public async IAsyncEnumerable<int> Handle(
+            Range _,
+            StreamHandlerDelegate<int> next,
+            [EnumeratorCancellation] CancellationToken cancellationToken)
+        {
+            for (int i = 0; i < 3; i++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                yield return _value;
+                await Task.Yield();
+            }
+        }
+    }
+
+    [ExcludeFromCodeCoverage]
+    private sealed class SlowRangeHandler : IStreamRequestHandler<Range, int>
+    {
+        public async IAsyncEnumerable<int> Handle(Range request,
+            [EnumeratorCancellation] CancellationToken cancellationToken)
+        {
+            for (int i = 0; i < request.Count; i++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                yield return i;
+                await Task.Delay(10, cancellationToken);
+            }
+        }
+    }
+
+    [ExcludeFromCodeCoverage]
+    private static StreamPipelineBuilder Build(IServiceProvider sp)
+    {
+        return new StreamPipelineBuilder(sp);
+    }
+
+
+    [Fact]
+    public async Task NoBehaviors_Passes_Through_Handler_Stream()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IStreamRequestHandler<Range, int>, RangeHandler>();
+
+        ServiceProvider sp = services.BuildServiceProvider(validateScopes: true);
+        StreamPipelineBuilder builder = Build(sp);
+
+        var collected = new List<int>();
+        await foreach (int item in builder.Execute<Range, int>(new Range(3), CancellationToken.None)
+                           .ConfigureAwait(false))
+        {
+            collected.Add(item);
+        }
+
+        Assert.Equal(new[] { 0, 1, 2 }, collected);
+    }
+
+    [Fact]
+    public async Task TwoBehaviors_Run_In_Registration_Order()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IStreamRequestHandler<Range, int>, RangeHandler>();
+        services.AddSingleton<IStreamPipelineBehavior<Range, int>, B1>();
+        services.AddSingleton<IStreamPipelineBehavior<Range, int>, B2>();
+
+        ServiceProvider sp = services.BuildServiceProvider(validateScopes: true);
+        StreamPipelineBuilder builder = Build(sp);
+
+        var collected = new List<int>();
+        await foreach (int item in builder.Execute<Range, int>(new Range(3), CancellationToken.None)
+                           .ConfigureAwait(false))
+        {
+            collected.Add(item);
+        }
+
+        Assert.Equal(new[] { 1, 11, 21 }, collected);
+    }
+
+    [Fact]
+    public async Task Order_Flipped_Produces_Different_Result()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IStreamRequestHandler<Range, int>, RangeHandler>();
+        services.AddSingleton<IStreamPipelineBehavior<Range, int>, B2>();
+        services.AddSingleton<IStreamPipelineBehavior<Range, int>, B1>();
+
+        ServiceProvider sp = services.BuildServiceProvider(validateScopes: true);
+        StreamPipelineBuilder builder = Build(sp);
+
+        List<int> collected = [];
+        await foreach (int item in builder.Execute<Range, int>(new Range(3), CancellationToken.None)
+                           .ConfigureAwait(false))
+        {
+            collected.Add(item);
+        }
+
+        Assert.Equal(new[] { 10, 20, 30 }, collected);
+    }
+
+    [Fact]
+    public async Task ShortCircuit_Behavior_Skips_Handler_And_Other_Behaviors()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IStreamRequestHandler<Range, int>, RangeHandler>();
+        services.AddSingleton<IStreamPipelineBehavior<Range, int>>(new ShortCircuit(7));
+        services.AddSingleton<IStreamPipelineBehavior<Range, int>, B1>();
+        ServiceProvider sp = services.BuildServiceProvider(validateScopes: true);
+        StreamPipelineBuilder builder = Build(sp);
+
+        List<int> collected = [];
+        await foreach (int item in builder.Execute<Range, int>(new Range(5), CancellationToken.None)
+                           .ConfigureAwait(false))
+        {
+            collected.Add(item);
+        }
+
+        Assert.Equal(new[] { 7, 7, 7 }, collected);
+    }
+
+    [Fact]
+    public async Task Cancellation_Before_Enumeration_Throws_Immediately()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IStreamRequestHandler<Range, int>, SlowRangeHandler>();
+
+        ServiceProvider sp = services.BuildServiceProvider(validateScopes: true);
+        StreamPipelineBuilder builder = Build(sp);
+
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        IAsyncEnumerator<int> enumerator =
+            builder.Execute<Range, int>(new Range(100), cts.Token).GetAsyncEnumerator(cts.Token);
+
+        await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+        {
+            try
+            {
+                await enumerator.MoveNextAsync();
+            }
+            finally
+            {
+                await enumerator.DisposeAsync();
             }
         });
-
-        Assert.NotNull(exception);
-        Assert.IsType<TaskCanceledException>(exception);
-        Assert.Single(results);
     }
 
     [Fact]
-    public async Task BuildAndExecute_ShouldThrowServiceNotFoundException_WhenHandlerNotRegistered()
+    public async Task Cancellation_During_Enumeration_Is_Observed()
     {
-        // Arrange
-        var request = new TestStreamRequest { Value = "Test" };
+        var services = new ServiceCollection();
+        services.AddSingleton<IStreamRequestHandler<Range, int>, SlowRangeHandler>();
 
-        // Mock service provider to throw when GetService is called
-        var serviceProviderMock = new Mock<IServiceProvider>();
-        serviceProviderMock
-            .Setup(sp => sp.GetService(typeof(IStreamRequestHandler<TestStreamRequest, string>)))
-            .Returns(null!);
+        ServiceProvider sp = services.BuildServiceProvider(validateScopes: true);
+        StreamPipelineBuilder builder = Build(sp);
 
-        // Create pipeline builder
-        var pipelineBuilder = new StreamPipelineBuilder();
+        using var cts = new CancellationTokenSource();
 
-        // Act & Assert
-        InvalidOperationException exception = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+        IAsyncEnumerator<int> enumerator =
+            builder.Execute<Range, int>(new Range(100), cts.Token).GetAsyncEnumerator(cts.Token);
+
+        try
         {
-            await foreach (string _ in pipelineBuilder.Execute<TestStreamRequest, string>(
-                request,
-                serviceProviderMock.Object,
-                CancellationToken.None))
+            Assert.True(await enumerator.MoveNextAsync());
+
+            await cts.CancelAsync();
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
             {
-                // This code should not be executed
-            }
-        });
-
-        Assert.Contains("No service for type", exception.Message);
+                await enumerator.MoveNextAsync();
+            });
+        }
+        finally
+        {
+            await enumerator.DisposeAsync();
+        }
     }
 
     [Fact]
-    public async Task BuildAndExecute_WithMultipleBehaviors_ShouldExecuteThemInCorrectOrder()
+    public async Task Scoped_Resolution_Uses_Scope_Instances()
     {
-        // Arrange
-        var request = new TestStreamRequest { Value = "Test" };
+        var services = new ServiceCollection();
+        services.AddScoped<IStreamRequestHandler<Range, int>, RangeHandler>();
+        services.AddScoped<IStreamPipelineBehavior<Range, int>, B1>();
+        services.AddScoped<IStreamPipelineBehavior<Range, int>, B2>();
 
-        // Create behaviors with different prefixes to track execution order
-        var behavior1 = new PrefixStreamBehavior("First");
-        var behavior2 = new PrefixStreamBehavior("Second");
-        var behavior3 = new PrefixStreamBehavior("Third");
-        var behaviors = new IStreamPipelineBehavior<TestStreamRequest, string>[] { behavior1, behavior2, behavior3 };
+        ServiceProvider root = services.BuildServiceProvider(validateScopes: true);
+        using IServiceScope scope = root.CreateScope();
 
-        // Create handler
-        var handler = new TestStreamRequestHandler();
+        StreamPipelineBuilder builder = Build(scope.ServiceProvider);
 
-        // Mock service provider
-        var serviceProviderMock = new Mock<IServiceProvider>();
-        serviceProviderMock
-            .Setup(sp => sp.GetService(typeof(IStreamRequestHandler<TestStreamRequest, string>)))
-            .Returns(handler);
-        serviceProviderMock
-            .Setup(sp => sp.GetService(typeof(IEnumerable<IStreamPipelineBehavior<TestStreamRequest, string>>)))
-            .Returns(behaviors);
-
-        // Create pipeline builder
-        var pipelineBuilder = new StreamPipelineBuilder();
-
-        // Act
-        var results = new List<string>();
-        await foreach (string item in pipelineBuilder.Execute<TestStreamRequest, string>(
-            request,
-            serviceProviderMock.Object,
-            CancellationToken.None))
+        var collected = new List<int>();
+        await foreach (int item in builder.Execute<Range, int>(new Range(3), CancellationToken.None)
+                           .ConfigureAwait(false))
         {
-            results.Add(item);
+            collected.Add(item);
         }
 
-        // Assert - behaviors should be applied in reverse order
-        Assert.Equal(3, results.Count);
-        Assert.All(results, r => Assert.StartsWith("First | Second | Third | Response", r));
+        Assert.Equal(new[] { 1, 11, 21 }, collected);
     }
 }

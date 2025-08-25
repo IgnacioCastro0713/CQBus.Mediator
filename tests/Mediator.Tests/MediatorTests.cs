@@ -1,243 +1,240 @@
 using System.Collections.Frozen;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
-using CQBus.Mediator;
 using CQBus.Mediator.Handlers;
+using CQBus.Mediator.Invokers;
 using CQBus.Mediator.Maps;
 using CQBus.Mediator.Messages;
 using CQBus.Mediator.NotificationPublishers;
-using CQBus.Mediator.Pipelines;
+using CQBus.Mediator.PipelineBuilders;
 using Moq;
 
 namespace Mediator.Tests;
 
-public class MediatorWithMapsTests
+
+public class MediatorTests
 {
-    public sealed class TestRequest : IRequest<string>
-    {
-        public string Message { get; set; } = "";
-    }
+    [ExcludeFromCodeCoverage]
+    private sealed record Ping(string Message) : IRequest<string>;
+    [ExcludeFromCodeCoverage]
+    private sealed record StreamPing(int Count) : IStreamRequest<int>;
+    [ExcludeFromCodeCoverage]
+    private sealed record Notice(string Text) : INotification;
 
-    public sealed class TestRequestHandler : IRequestHandler<TestRequest, string>
+    [ExcludeFromCodeCoverage]
+    private sealed class TestMaps : IMediatorDispatchMaps
     {
-        public ValueTask<string> Handle(TestRequest request, CancellationToken ct)
-            => ValueTask.FromResult($"Handled: {request.Message}");
-    }
-
-    public sealed class TestNotification : INotification
-    {
-        public string Message { get; set; } = "";
-    }
-
-    public sealed class TestNotificationHandler : INotificationHandler<TestNotification>
-    {
-        public ValueTask Handle(TestNotification notification, CancellationToken ct)
-            => ValueTask.CompletedTask;
-    }
-
-    public sealed class TestStreamRequest : IStreamRequest<int>
-    {
-        public int Count { get; set; }
-    }
-
-    public sealed class TestStreamRequestHandler : IStreamRequestHandler<TestStreamRequest, int>
-    {
-        public async IAsyncEnumerable<int> Handle(TestStreamRequest request, [EnumeratorCancellation] CancellationToken ct)
+        public TestMaps(
+            FrozenDictionary<(Type, Type), Delegate> req,
+            FrozenDictionary<Type, Delegate> noti,
+            FrozenDictionary<(Type, Type), Delegate> str)
         {
-            for (int i = 1; i <= request.Count; i++)
-            {
-                ct.ThrowIfCancellationRequested();
-                yield return i;
-                await Task.Yield();
-            }
+            Requests = req;
+            Notifications = noti;
+            Streams = str;
+        }
+
+        public FrozenDictionary<(Type, Type), Delegate> Requests { get; }
+        public FrozenDictionary<Type, Delegate> Notifications { get; }
+        public FrozenDictionary<(Type, Type), Delegate> Streams { get; }
+    }
+
+    [ExcludeFromCodeCoverage]
+    private static TestMaps BuildMaps(
+        Action<Dictionary<(Type, Type), Delegate>>? addRequests = null,
+        Action<Dictionary<Type, Delegate>>? addNotifications = null,
+        Action<Dictionary<(Type, Type), Delegate>>? addStreams = null)
+    {
+        var req = new Dictionary<(Type, Type), Delegate>();
+        var noti = new Dictionary<Type, Delegate>();
+        var str = new Dictionary<(Type, Type), Delegate>();
+
+        addRequests?.Invoke(req);
+        addNotifications?.Invoke(noti);
+        addStreams?.Invoke(str);
+
+        return new TestMaps(
+            req.ToFrozenDictionary(),
+            noti.ToFrozenDictionary(),
+            str.ToFrozenDictionary());
+    }
+
+    [ExcludeFromCodeCoverage]
+    private static CQBus.Mediator.Mediator CreateMediator(
+        IMediatorDispatchMaps maps,
+        out Mock<IRequestPipelineBuilder> reqBuilder,
+        out Mock<INotificationPipelineBuilder> notifBuilder,
+        out Mock<IStreamPipelineBuilder> streamBuilder,
+        out INotificationPublisher publisher)
+    {
+        reqBuilder = new Mock<IRequestPipelineBuilder>(MockBehavior.Strict);
+        notifBuilder = new Mock<INotificationPipelineBuilder>(MockBehavior.Strict);
+        streamBuilder = new Mock<IStreamPipelineBuilder>(MockBehavior.Strict);
+
+        var factory = new Mock<IPipelineBuilderFactory>(MockBehavior.Strict);
+        factory.SetupGet(f => f.Request).Returns(reqBuilder.Object);
+        factory.SetupGet(f => f.Notification).Returns(notifBuilder.Object);
+        factory.SetupGet(f => f.Stream).Returns(streamBuilder.Object);
+
+        publisher = new TestPublisher();
+        return new CQBus.Mediator.Mediator(factory.Object, maps, publisher);
+    }
+
+    [ExcludeFromCodeCoverage]
+    private sealed class TestPublisher : INotificationPublisher
+    {
+        public List<object> Published { get; } = [];
+
+        public ValueTask Publish<TNotification>(INotificationHandler<TNotification>[] handlers, TNotification notification, CancellationToken cancellationToken) where TNotification : INotification
+        {
+            Published.Add(notification!);
+            return ValueTask.CompletedTask;
         }
     }
 
-    // =========================
-    //          SEND
-    // =========================
-    [Fact]
-    public async Task Send_Returns_Response_When_Handler_Exists()
+    [ExcludeFromCodeCoverage]
+    private static async IAsyncEnumerable<int> StreamRange(int count, [EnumeratorCancellation] CancellationToken ct = default)
     {
-        var sp = new Mock<IServiceProvider>(MockBehavior.Strict);
-        sp.Setup(s => s.GetService(typeof(IRequestHandler<TestRequest, string>)))
-            .Returns(new TestRequestHandler());
-        sp.Setup(s => s.GetService(typeof(IEnumerable<IPipelineBehavior<TestRequest, string>>)))
-            .Returns(Array.Empty<IPipelineBehavior<TestRequest, string>>());
-
-        var maps = new Mock<IMediatorDispatchMaps>(MockBehavior.Loose);
-        var reqInvoker = (RequestInvoker<string>)MediatorInvoker.Request<TestRequest, string>;
-        maps.SetupGet(m => m.Requests).Returns(new Dictionary<(Type, Type), Delegate>
+        for (int i = 0; i < count; i++)
         {
-            { (typeof(TestRequest), typeof(string)), reqInvoker }
-        }.ToFrozenDictionary());
-
-        var publisher = new Mock<INotificationPublisher>(MockBehavior.Loose);
-        var mediator = new CQBus.Mediator.Mediator(sp.Object, maps.Object, publisher.Object);
-
-        string result = await mediator.Send(new TestRequest { Message = "Hi" });
-
-        Assert.Equal("Handled: Hi", result);
-
-        sp.VerifyAll();
-        maps.VerifyGet(m => m.Requests, Times.AtLeastOnce());
+            ct.ThrowIfCancellationRequested();
+            yield return i;
+            await Task.Yield();
+        }
     }
 
+    // -----------------------------
+    //              Send
+    // -----------------------------
 
     [Fact]
-    public async Task Send_Throws_ArgumentNull_When_Request_Null()
+    public async Task Send_Returns_Response_When_Map_Exists()
     {
-        var sp = new Mock<IServiceProvider>(MockBehavior.Loose);
-        var maps = new Mock<IMediatorDispatchMaps>(MockBehavior.Loose);
-
-        maps.SetupGet(m => m.Requests).Returns(new Dictionary<(Type, Type), Delegate>().ToFrozenDictionary());
-        maps.SetupGet(m => m.Notifications).Returns(new Dictionary<Type, Delegate>().ToFrozenDictionary());
-        maps.SetupGet(m => m.Streams).Returns(new Dictionary<(Type, Type), Delegate>().ToFrozenDictionary());
-
-        var publisher = new Mock<INotificationPublisher>(MockBehavior.Loose);
-
-        var mediator = new CQBus.Mediator.Mediator(sp.Object, maps.Object, publisher.Object);
-
-        await Assert.ThrowsAsync<ArgumentNullException>(async () =>
-            await mediator.Send<string>(null!, CancellationToken.None));
-    }
-
-    // =========================
-    //        PUBLISH
-    // =========================
-    [Fact]
-    public async Task Publish_Completes_When_No_Handler_Registered()
-    {
-        var sp = new Mock<IServiceProvider>(MockBehavior.Strict);
-
-        var maps = new Mock<IMediatorDispatchMaps>(MockBehavior.Strict);
-        maps.SetupGet(m => m.Notifications)
-            .Returns(new Dictionary<Type, Delegate>().ToFrozenDictionary());
-        var publisher = new Mock<INotificationPublisher>(MockBehavior.Loose);
-        var mediator = new CQBus.Mediator.Mediator(sp.Object, maps.Object, publisher.Object);
-
-        await mediator.Publish(new TestNotification { Message = "noop" });
-
-        maps.VerifyGet(m => m.Notifications, Times.AtLeastOnce());
-        sp.VerifyNoOtherCalls();
-    }
-
-    [Fact]
-    public async Task Publish_Invokes_Handler_When_Registered()
-    {
-        var sp = new Mock<IServiceProvider>(MockBehavior.Strict);
-        sp.Setup(s => s.GetService(typeof(IEnumerable<INotificationHandler<TestNotification>>)))
-            .Returns(new[] { new TestNotificationHandler() });
-
-        var maps = new Mock<IMediatorDispatchMaps>(MockBehavior.Strict);
-        var notifInvoker = (NotificationInvoker<TestNotification>)MediatorInvoker.Notification<TestNotification>;
-
-        maps.SetupGet(m => m.Notifications).Returns(new Dictionary<Type, Delegate>
+        IMediatorDispatchMaps maps = BuildMaps(addRequests: req =>
         {
-            { typeof(TestNotification), notifInvoker }
-        }.ToFrozenDictionary());
+            req.Add((typeof(Ping), typeof(string)),
+                (RequestInvoker<string>)((builder, request, ct) =>
+                    new ValueTask<string>(((Ping)request).Message.ToUpperInvariant())));
+        });
 
-        var publisher = new Mock<INotificationPublisher>(MockBehavior.Loose);
-        var mediator = new CQBus.Mediator.Mediator(sp.Object, maps.Object, publisher.Object);
-
-        await mediator.Publish(new TestNotification { Message = "hello" });
-
-        sp.VerifyAll();
-        maps.VerifyGet(m => m.Notifications, Times.AtLeastOnce());
+        CQBus.Mediator.Mediator mediator = CreateMediator(maps, out _, out _, out _, out _);
+        string result = await mediator.Send(new Ping("hello"));
+        Assert.Equal("HELLO", result);
     }
 
     [Fact]
-    public async Task Publish_Throws_ArgumentNull_When_Notification_Null()
+    public async Task Send_Throws_When_Map_Missing()
     {
-        var sp = new Mock<IServiceProvider>(MockBehavior.Loose);
-        var maps = new Mock<IMediatorDispatchMaps>(MockBehavior.Loose);
-        maps.SetupGet(m => m.Requests).Returns(new Dictionary<(Type, Type), Delegate>().ToFrozenDictionary());
-        maps.SetupGet(m => m.Notifications).Returns(new Dictionary<Type, Delegate>().ToFrozenDictionary());
-        maps.SetupGet(m => m.Streams).Returns(new Dictionary<(Type, Type), Delegate>().ToFrozenDictionary());
+        TestMaps maps = BuildMaps();
+        CQBus.Mediator.Mediator mediator = CreateMediator(maps, out _, out _, out _, out _);
 
-        var publisher = new Mock<INotificationPublisher>(MockBehavior.Loose);
-
-        var mediator = new CQBus.Mediator.Mediator(sp.Object, maps.Object, publisher.Object);
-
-        await Assert.ThrowsAsync<ArgumentNullException>(async () =>
-            await mediator.Publish<TestNotification>(null!, CancellationToken.None));
+        InvalidOperationException ex = await Assert.ThrowsAsync<InvalidOperationException>(() => mediator.Send(new Ping("x")).AsTask());
+        Assert.Contains("No IRequest handler map", ex.Message);
     }
 
-    // =========================
-    //         STREAM
-    // =========================
+    // -----------------------------
+    //            Publish
+    // -----------------------------
+
     [Fact]
-    public async Task CreateStream_Yields_Sequence_When_Handler_Exists()
+    public async Task Publish_Does_Nothing_When_No_Handlers()
     {
-        var sp = new Mock<IServiceProvider>(MockBehavior.Strict);
+        TestMaps maps = BuildMaps();
+        CQBus.Mediator.Mediator mediator = CreateMediator(maps, out _, out _, out _, out INotificationPublisher publisher);
 
-        sp.Setup(s => s.GetService(typeof(IStreamRequestHandler<TestStreamRequest, int>)))
-            .Returns(new TestStreamRequestHandler());
+        await mediator.Publish(new Notice("nada"));
+        Assert.Empty(((TestPublisher)publisher).Published);
+    }
 
-        sp.Setup(s => s.GetService(
-                typeof(IEnumerable<IStreamPipelineBehavior<TestStreamRequest, int>>)))
-            .Returns(Array.Empty<IStreamPipelineBehavior<TestStreamRequest, int>>());
+    [Fact]
+    public async Task Publish_Invokes_Handler_When_Map_Exists()
+    {
+        bool called = false;
 
-        var maps = new Mock<IMediatorDispatchMaps>(MockBehavior.Strict);
-        var streamInvoker = (StreamInvoker<int>)MediatorInvoker.Stream<TestStreamRequest, int>;
-        maps.SetupGet(m => m.Streams).Returns(new Dictionary<(Type, Type), Delegate>
+        TestMaps maps = BuildMaps(addNotifications: noti =>
         {
-            { (typeof(TestStreamRequest), typeof(int)), streamInvoker }
-        }.ToFrozenDictionary());
+            noti.Add(typeof(Notice),
+                (NotificationInvoker<Notice>)((builder, n, pub, ct) =>
+                {
+                    called = true;
+                    return ValueTask.CompletedTask;
+                }));
+        });
 
-        maps.SetupGet(m => m.Requests).Returns(new Dictionary<(Type, Type), Delegate>().ToFrozenDictionary());
-        maps.SetupGet(m => m.Notifications).Returns(new Dictionary<Type, Delegate>().ToFrozenDictionary());
+        CQBus.Mediator.Mediator mediator = CreateMediator(maps, out _, out _, out _, out _);
+        await mediator.Publish(new Notice("hola"));
 
-        var publisher = new Mock<INotificationPublisher>(MockBehavior.Loose);
+        Assert.True(called);
+    }
 
-        var mediator = new CQBus.Mediator.Mediator(sp.Object, maps.Object, publisher.Object);
+    // -----------------------------
+    //          CreateStream
+    // -----------------------------
 
-        var req = new TestStreamRequest { Count = 3 };
+    [Fact]
+    public async Task CreateStream_Returns_Values_When_Map_Exists()
+    {
+        TestMaps maps = BuildMaps(addStreams: str =>
+        {
+            str.Add((typeof(StreamPing), typeof(int)),
+                (StreamInvoker<int>)((builder, request, ct) =>
+                    StreamRange(((StreamPing)request).Count, ct)));
+        });
+
+        CQBus.Mediator.Mediator mediator = CreateMediator(maps, out _, out _, out _, out _);
+
         var list = new List<int>();
-        await foreach (int i in mediator.CreateStream<int>(req))
+        await foreach (int v in mediator.CreateStream(new StreamPing(3)))
         {
-            list.Add(i);
+            list.Add(v);
         }
 
-        Assert.Equal(new[] { 1, 2, 3 }, list);
-
-        sp.VerifyAll();
-        maps.VerifyGet(m => m.Streams, Times.AtLeastOnce());
+        Assert.Equal(new[] { 0, 1, 2 }, list);
     }
-
 
     [Fact]
-    public void CreateStream_Throws_ArgumentNull_When_Request_Null()
+    public void CreateStream_Throws_When_Map_Missing()
     {
-        var sp = new Mock<IServiceProvider>(MockBehavior.Loose);
-        var maps = new Mock<IMediatorDispatchMaps>(MockBehavior.Loose);
-        maps.SetupGet(m => m.Requests).Returns(new Dictionary<(Type, Type), Delegate>().ToFrozenDictionary());
-        maps.SetupGet(m => m.Notifications).Returns(new Dictionary<Type, Delegate>().ToFrozenDictionary());
-        maps.SetupGet(m => m.Streams).Returns(new Dictionary<(Type, Type), Delegate>().ToFrozenDictionary());
-        var publisher = new Mock<INotificationPublisher>(MockBehavior.Loose);
+        TestMaps maps = BuildMaps();
+        CQBus.Mediator.Mediator mediator = CreateMediator(maps, out _, out _, out _, out _);
 
-        var mediator = new CQBus.Mediator.Mediator(sp.Object, maps.Object, publisher.Object);
+        InvalidOperationException ex = Assert.Throws<InvalidOperationException>(() =>
+        {
+            mediator.CreateStream(new StreamPing(1));
+        });
 
-        ArgumentNullException ex = Assert.Throws<ArgumentNullException>(() =>
-                mediator.CreateStream<int>(null!, CancellationToken.None));
-        Assert.Equal("request", ex.ParamName);
+        Assert.Contains("No IStream handler map", ex.Message);
     }
 
-    // =========================
-    //     CONSTRUCTOR
-    // =========================
     [Fact]
-    public void Ctor_Works_With_Maps()
+    public async Task CreateStream_Respects_CancellationToken()
     {
-        var sp = new Mock<IServiceProvider>(MockBehavior.Loose);
-        var maps = new Mock<IMediatorDispatchMaps>(MockBehavior.Loose);
-        maps.SetupGet(m => m.Requests).Returns(new Dictionary<(Type, Type), Delegate>().ToFrozenDictionary());
-        maps.SetupGet(m => m.Notifications).Returns(new Dictionary<Type, Delegate>().ToFrozenDictionary());
-        maps.SetupGet(m => m.Streams).Returns(new Dictionary<(Type, Type), Delegate>().ToFrozenDictionary());
+        TestMaps maps = BuildMaps(addStreams: str =>
+        {
+            str.Add((typeof(StreamPing), typeof(int)),
+                (StreamInvoker<int>)((builder, request, ct) =>
+                    StreamRange(((StreamPing)request).Count, ct)));
+        });
 
-        var publisher = new Mock<INotificationPublisher>(MockBehavior.Loose);
+        CQBus.Mediator.Mediator mediator = CreateMediator(maps, out _, out _, out _, out _);
 
-        var mediator = new CQBus.Mediator.Mediator(sp.Object, maps.Object, publisher.Object);
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
 
-        Assert.NotNull(mediator);
+        IAsyncEnumerator<int> asyncEnum = mediator.CreateStream(new StreamPing(10), cts.Token)
+            .GetAsyncEnumerator(cts.Token);
+
+        await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+        {
+            try
+            {
+                await asyncEnum.MoveNextAsync();
+            }
+            finally
+            {
+                await asyncEnum.DisposeAsync();
+            }
+        });
     }
+
 }

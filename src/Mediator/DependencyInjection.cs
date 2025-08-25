@@ -2,8 +2,10 @@
 using System.Reflection;
 using CQBus.Mediator.Configurations;
 using CQBus.Mediator.Handlers;
+using CQBus.Mediator.Invokers;
 using CQBus.Mediator.Maps;
 using CQBus.Mediator.NotificationPublishers;
+using CQBus.Mediator.PipelineBuilders;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -27,6 +29,7 @@ public static class DependencyInjection
         services.TryAddHandlers(configurationOptions.AssembliesToRegister, configurationOptions.ServiceLifetime);
         services.TryAddPublisher(configurationOptions.PublisherStrategyType, configurationOptions.ServiceLifetime);
         services.TryAddBehaviors(configurationOptions);
+        services.AddPipelineBuilders(configurationOptions);
 
         services.RegisterPreCompiledDispatchMaps(configurationOptions.AssembliesToRegister);
 
@@ -120,6 +123,29 @@ public static class DependencyInjection
         {
             services.TryAddEnumerable(serviceDescriptor);
         }
+    }
+
+    private static void AddPipelineBuilders(this IServiceCollection services, MediatorConfiguration configurationOptions)
+    {
+        services.Add(ServiceDescriptor.Describe(
+            typeof(INotificationPipelineBuilder),
+            typeof(NotificationPipelineBuilder),
+            configurationOptions.ServiceLifetime));
+
+        services.Add(ServiceDescriptor.Describe(
+            typeof(IRequestPipelineBuilder),
+            typeof(RequestPipelineBuilder),
+            configurationOptions.ServiceLifetime));
+
+        services.Add(ServiceDescriptor.Describe(
+            typeof(IStreamPipelineBuilder),
+            typeof(StreamPipelineBuilder),
+            configurationOptions.ServiceLifetime));
+
+        services.Add(ServiceDescriptor.Describe(
+            typeof(IPipelineBuilderFactory),
+            typeof(PipelineBuilderFactory),
+            configurationOptions.ServiceLifetime));
     }
 
     private static void RegisterPreCompiledDispatchMaps(

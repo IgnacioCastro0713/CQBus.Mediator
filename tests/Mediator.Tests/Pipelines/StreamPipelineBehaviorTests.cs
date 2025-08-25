@@ -1,4 +1,5 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 using CQBus.Mediator.Messages;
 using CQBus.Mediator.Pipelines;
 using Microsoft.Extensions.DependencyInjection;
@@ -8,12 +9,14 @@ namespace Mediator.Tests.Pipelines;
 public class StreamPipelineBehaviorTests
 {
     // Test request class implementing IStreamRequest<string>
+    [ExcludeFromCodeCoverage]
     public class TestStreamRequest : IStreamRequest<string>
     {
         public string Value { get; set; } = string.Empty;
     }
 
     // Test implementation of IStreamPipelineBehavior that logs before and after each item
+    [ExcludeFromCodeCoverage]
     public class LoggingStreamBehavior : IStreamPipelineBehavior<TestStreamRequest, string>
     {
         private readonly List<string> _log = new();
@@ -40,6 +43,7 @@ public class StreamPipelineBehaviorTests
     }
 
     // Test implementation of IStreamPipelineBehavior that transforms items
+    [ExcludeFromCodeCoverage]
     public class UpperCaseStreamBehavior : IStreamPipelineBehavior<TestStreamRequest, string>
     {
         public async IAsyncEnumerable<string> Handle(
@@ -57,6 +61,7 @@ public class StreamPipelineBehaviorTests
     }
 
     // Test implementation of IStreamPipelineBehavior that filters items
+    [ExcludeFromCodeCoverage]
     public class FilterStreamBehavior : IStreamPipelineBehavior<TestStreamRequest, string>
     {
         public async IAsyncEnumerable<string> Handle(
@@ -77,6 +82,7 @@ public class StreamPipelineBehaviorTests
     }
 
     // Helper method to generate test stream data
+    [ExcludeFromCodeCoverage]
     private static async IAsyncEnumerable<string> GetTestStream([EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         yield return "item1";
