@@ -6,9 +6,13 @@
 		<IsPackable>true</IsPackable>
 		<LangVersion>12.0</LangVersion>
 		<Authors>Ignacio Menchaca</Authors>
+		<PackageIcon>icon.png</PackageIcon>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
 		<PackageId>CQBus.Mediator</PackageId>
 		<PackageTags>CQBus.Mediator;Mediator;MediatR</PackageTags>
+		<Description>
+			CQBus.Mediator is a high-performance and minimal allocation implementation of the Mediator pattern for .NET.
+		</Description>
 		<PackageProjectUrl>https://github.com/IgnacioCastro0713/CQBus.Mediator</PackageProjectUrl>
 		<RepositoryUrl>https://github.com/IgnacioCastro0713/CQBus.Mediator</RepositoryUrl>
 	</PropertyGroup>
@@ -29,5 +33,6 @@
 
 	<ItemGroup>
 		<None Include="..\..\README.md" Pack="true" PackagePath="\" />
+		<None Include="..\..\icon.png" Pack="true" PackagePath="\" />
 	</ItemGroup>
 </Project>

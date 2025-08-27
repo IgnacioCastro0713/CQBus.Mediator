@@ -20,6 +20,13 @@ public sealed class MediatorConfiguration
         return this;
     }
 
+    public MediatorConfiguration RegisterServicesFromAssemblies(params Assembly[] assemblies)
+    {
+        AssembliesToRegister.AddRange(assemblies);
+
+        return this;
+    }
+
     public MediatorConfiguration AddBehavior(
         Type behaviorType,
         Type implementationType,
