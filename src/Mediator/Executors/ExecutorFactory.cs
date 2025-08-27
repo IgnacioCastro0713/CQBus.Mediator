@@ -7,19 +7,12 @@ public interface IExecutorFactory
     IStreamExecutor Stream { get; }
 }
 
-internal sealed class ExecutorFactory : IExecutorFactory
+internal sealed class ExecutorFactory(
+    IRequestExecutor request,
+    INotificationExecutor notification,
+    IStreamExecutor stream) : IExecutorFactory
 {
-    public ExecutorFactory(
-        IRequestExecutor request,
-        INotificationExecutor notification,
-        IStreamExecutor stream)
-    {
-        Request = request;
-        Notification = notification;
-        Stream = stream;
-    }
-
-    public IRequestExecutor Request { get; }
-    public INotificationExecutor Notification { get; }
-    public IStreamExecutor Stream { get; }
+    public IRequestExecutor Request { get; } = request;
+    public INotificationExecutor Notification { get; } = notification;
+    public IStreamExecutor Stream { get; } = stream;
 }

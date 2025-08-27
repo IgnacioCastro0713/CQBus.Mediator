@@ -11,8 +11,7 @@ public sealed class Mediator(
     IMediatorDispatchMaps maps,
     INotificationPublisher publisher) : IMediator
 {
-    public ValueTask<TResponse> Send<TResponse>(IRequest<TResponse> request,
-        CancellationToken cancellationToken = default)
+    public ValueTask<TResponse> Send<TResponse>(IRequest<TResponse> request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -20,8 +19,7 @@ public sealed class Mediator(
 
         if (!maps.Requests.TryGetValue(key, out Delegate? del) || del is not RequestInvoker<TResponse> handler)
         {
-            throw new InvalidOperationException(
-               $"No IRequest handler map for ({key.req.FullName ?? key.req.Name}, {key.res.FullName ?? key.res.Name}).");
+            throw new InvalidOperationException($"No IRequest handler map for ({key.req.FullName ?? key.req.Name}, {key.res.FullName ?? key.res.Name}).");
         }
 
         return handler(factory.Request, request, cancellationToken);
@@ -42,8 +40,7 @@ public sealed class Mediator(
         return handler(factory.Notification, notification, publisher, cancellationToken);
     }
 
-    public IAsyncEnumerable<TResponse> CreateStream<TResponse>(IStreamRequest<TResponse> request,
-        CancellationToken cancellationToken = default)
+    public IAsyncEnumerable<TResponse> CreateStream<TResponse>(IStreamRequest<TResponse> request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
 
