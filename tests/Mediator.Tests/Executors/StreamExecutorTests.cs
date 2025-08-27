@@ -1,14 +1,14 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
+using CQBus.Mediator.Executors;
 using CQBus.Mediator.Handlers;
 using CQBus.Mediator.Messages;
-using CQBus.Mediator.PipelineBuilders;
 using CQBus.Mediator.Pipelines;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Mediator.Tests.PipelineBuilders;
+namespace Mediator.Tests.Executors;
 
-public sealed class StreamPipelineBuilderTests
+public sealed class StreamExecutorTests
 {
     [ExcludeFromCodeCoverage]
     private sealed record Range(int Count) : IStreamRequest<int>;
@@ -94,9 +94,9 @@ public sealed class StreamPipelineBuilderTests
     }
 
     [ExcludeFromCodeCoverage]
-    private static StreamPipelineBuilder Build(IServiceProvider sp)
+    private static StreamExecutor Build(IServiceProvider sp)
     {
-        return new StreamPipelineBuilder(sp);
+        return new StreamExecutor(sp);
     }
 
 
@@ -107,7 +107,7 @@ public sealed class StreamPipelineBuilderTests
         services.AddSingleton<IStreamRequestHandler<Range, int>, RangeHandler>();
 
         ServiceProvider sp = services.BuildServiceProvider(validateScopes: true);
-        StreamPipelineBuilder builder = Build(sp);
+        StreamExecutor builder = Build(sp);
 
         var collected = new List<int>();
         await foreach (int item in builder.Execute<Range, int>(new Range(3), CancellationToken.None)
@@ -128,7 +128,7 @@ public sealed class StreamPipelineBuilderTests
         services.AddSingleton<IStreamPipelineBehavior<Range, int>, B2>();
 
         ServiceProvider sp = services.BuildServiceProvider(validateScopes: true);
-        StreamPipelineBuilder builder = Build(sp);
+        StreamExecutor builder = Build(sp);
 
         var collected = new List<int>();
         await foreach (int item in builder.Execute<Range, int>(new Range(3), CancellationToken.None)
@@ -149,7 +149,7 @@ public sealed class StreamPipelineBuilderTests
         services.AddSingleton<IStreamPipelineBehavior<Range, int>, B1>();
 
         ServiceProvider sp = services.BuildServiceProvider(validateScopes: true);
-        StreamPipelineBuilder builder = Build(sp);
+        StreamExecutor builder = Build(sp);
 
         List<int> collected = [];
         await foreach (int item in builder.Execute<Range, int>(new Range(3), CancellationToken.None)
@@ -169,7 +169,7 @@ public sealed class StreamPipelineBuilderTests
         services.AddSingleton<IStreamPipelineBehavior<Range, int>>(new ShortCircuit(7));
         services.AddSingleton<IStreamPipelineBehavior<Range, int>, B1>();
         ServiceProvider sp = services.BuildServiceProvider(validateScopes: true);
-        StreamPipelineBuilder builder = Build(sp);
+        StreamExecutor builder = Build(sp);
 
         List<int> collected = [];
         await foreach (int item in builder.Execute<Range, int>(new Range(5), CancellationToken.None)
@@ -188,7 +188,7 @@ public sealed class StreamPipelineBuilderTests
         services.AddSingleton<IStreamRequestHandler<Range, int>, SlowRangeHandler>();
 
         ServiceProvider sp = services.BuildServiceProvider(validateScopes: true);
-        StreamPipelineBuilder builder = Build(sp);
+        StreamExecutor builder = Build(sp);
 
         using var cts = new CancellationTokenSource();
         await cts.CancelAsync();
@@ -216,7 +216,7 @@ public sealed class StreamPipelineBuilderTests
         services.AddSingleton<IStreamRequestHandler<Range, int>, SlowRangeHandler>();
 
         ServiceProvider sp = services.BuildServiceProvider(validateScopes: true);
-        StreamPipelineBuilder builder = Build(sp);
+        StreamExecutor builder = Build(sp);
 
         using var cts = new CancellationTokenSource();
 
@@ -251,7 +251,7 @@ public sealed class StreamPipelineBuilderTests
         ServiceProvider root = services.BuildServiceProvider(validateScopes: true);
         using IServiceScope scope = root.CreateScope();
 
-        StreamPipelineBuilder builder = Build(scope.ServiceProvider);
+        StreamExecutor builder = Build(scope.ServiceProvider);
 
         var collected = new List<int>();
         await foreach (int item in builder.Execute<Range, int>(new Range(3), CancellationToken.None)

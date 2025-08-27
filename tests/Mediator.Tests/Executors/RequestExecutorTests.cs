@@ -1,14 +1,14 @@
 ﻿using System.Diagnostics.CodeAnalysis;
+using CQBus.Mediator.Executors;
 using CQBus.Mediator.Handlers;
 using CQBus.Mediator.Messages;
-using CQBus.Mediator.PipelineBuilders;
 using CQBus.Mediator.Pipelines;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Mediator.Tests.PipelineBuilders;
+namespace Mediator.Tests.Executors;
 
 
-public class RequestPipelineBuilderTests
+public class RequestExecutorTests
 {
     [ExcludeFromCodeCoverage]
     private sealed record Echo(string Text) : IRequest<string>;
@@ -70,10 +70,10 @@ public class RequestPipelineBuilderTests
     }
 
     [ExcludeFromCodeCoverage]
-    private static RequestPipelineBuilder Build(IServiceCollection sc)
+    private static RequestExecutor Build(IServiceCollection sc)
     {
         ServiceProvider sp = sc.BuildServiceProvider(validateScopes: true);
-        return new RequestPipelineBuilder(sp);
+        return new RequestExecutor(sp);
     }
 
     [Fact]
@@ -84,7 +84,7 @@ public class RequestPipelineBuilderTests
         var sc = new ServiceCollection();
         sc.AddSingleton<IRequestHandler<Echo, string>>(handler);
 
-        RequestPipelineBuilder builder = Build(sc);
+        RequestExecutor builder = Build(sc);
 
         string result = await builder.Execute<Echo, string>(new Echo("x"), CancellationToken.None);
 
@@ -103,7 +103,7 @@ public class RequestPipelineBuilderTests
         sc.AddSingleton<IPipelineBehavior<Echo, string>, B1>();
         sc.AddSingleton<IPipelineBehavior<Echo, string>, B2>();
 
-        RequestPipelineBuilder builder = Build(sc);
+        RequestExecutor builder = Build(sc);
 
         string result = await builder.Execute<Echo, string>(new Echo("x"), CancellationToken.None);
 
@@ -122,7 +122,7 @@ public class RequestPipelineBuilderTests
         sc.AddSingleton<IPipelineBehavior<Echo, string>>(new ShortCircuit("stop"));
         sc.AddSingleton<IPipelineBehavior<Echo, string>, B1>();
 
-        RequestPipelineBuilder builder = Build(sc);
+        RequestExecutor builder = Build(sc);
 
         string result = await builder.Execute<Echo, string>(new Echo("x"), CancellationToken.None);
 
@@ -136,7 +136,7 @@ public class RequestPipelineBuilderTests
         var sc = new ServiceCollection();
         sc.AddSingleton<IRequestHandler<Echo, string>, CancelAwareHandler>();
 
-        RequestPipelineBuilder builder = Build(sc);
+        RequestExecutor builder = Build(sc);
 
         using var cts = new CancellationTokenSource();
         await cts.CancelAsync();
@@ -153,7 +153,7 @@ public class RequestPipelineBuilderTests
         sc.AddSingleton<IRequestHandler<Echo, string>>(handler);
         sc.AddSingleton<IPipelineBehavior<Echo, string>, B2>();
 
-        RequestPipelineBuilder builder = Build(sc);
+        RequestExecutor builder = Build(sc);
 
         string result = await builder.Execute<Echo, string>(new Echo("z"), CancellationToken.None);
 

@@ -1,13 +1,13 @@
 ﻿using System.Diagnostics.CodeAnalysis;
+using CQBus.Mediator.Executors;
 using CQBus.Mediator.Handlers;
 using CQBus.Mediator.Messages;
 using CQBus.Mediator.NotificationPublishers;
-using CQBus.Mediator.PipelineBuilders;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Mediator.Tests.PipelineBuilders;
+namespace Mediator.Tests.Executors;
 
-public sealed class NotificationPipelineBuilderTests
+public sealed class NotificationExecutorTests
 {
     [ExcludeFromCodeCoverage]
     private sealed record Notice(string Text) : INotification;
@@ -59,9 +59,9 @@ public sealed class NotificationPipelineBuilderTests
     }
 
     [ExcludeFromCodeCoverage]
-    private static NotificationPipelineBuilder Build(IServiceProvider serviceProvider)
+    private static NotificationExecutor Build(IServiceProvider serviceProvider)
     {
-        return new NotificationPipelineBuilder(serviceProvider);
+        return new NotificationExecutor(serviceProvider);
     }
 
 
@@ -74,11 +74,11 @@ public sealed class NotificationPipelineBuilderTests
         services.AddSingleton<INotificationPublisher>(publisher);
 
         ServiceProvider sp = services.BuildServiceProvider(validateScopes: true);
-        NotificationPipelineBuilder builder = Build(sp);
+        NotificationExecutor executor = Build(sp);
 
         var notification = new Notice("x");
 
-        await builder.Execute(notification, publisher, CancellationToken.None);
+        await executor.Execute(notification, publisher, CancellationToken.None);
 
         Assert.Equal(1, publisher.Calls);
         Assert.Same(notification, publisher.LastNotification);
@@ -101,11 +101,11 @@ public sealed class NotificationPipelineBuilderTests
         services.AddSingleton<INotificationPublisher>(publisher);
 
         ServiceProvider sp = services.BuildServiceProvider(validateScopes: true);
-        NotificationPipelineBuilder builder = Build(sp);
+        NotificationExecutor executor = Build(sp);
 
         var notification = new Notice("hello");
 
-        await builder.Execute(notification, publisher, CancellationToken.None);
+        await executor.Execute(notification, publisher, CancellationToken.None);
 
         Assert.Equal(1, publisher.Calls);
         Assert.NotNull(publisher.LastHandlersArray);
@@ -127,12 +127,12 @@ public sealed class NotificationPipelineBuilderTests
         services.AddSingleton<INotificationPublisher>(publisher);
 
         ServiceProvider sp = services.BuildServiceProvider(validateScopes: true);
-        NotificationPipelineBuilder builder = Build(sp);
+        NotificationExecutor executor = Build(sp);
 
         using var cts = new CancellationTokenSource();
         await cts.CancelAsync();
 
-        await builder.Execute(new Notice("y"), publisher, cts.Token);
+        await executor.Execute(new Notice("y"), publisher, cts.Token);
 
         Assert.True(publisher.LastToken.IsCancellationRequested);
     }
@@ -150,11 +150,11 @@ public sealed class NotificationPipelineBuilderTests
         ServiceProvider root = services.BuildServiceProvider(validateScopes: true);
         using IServiceScope scope = root.CreateScope();
 
-        NotificationPipelineBuilder builder = Build(scope.ServiceProvider);
+        NotificationExecutor executor = Build(scope.ServiceProvider);
 
         var notification = new Notice("z");
 
-        await builder.Execute(notification, publisher, CancellationToken.None);
+        await executor.Execute(notification, publisher, CancellationToken.None);
 
         Assert.Equal(2, publisher.LastHandlersArray!.Length);
 

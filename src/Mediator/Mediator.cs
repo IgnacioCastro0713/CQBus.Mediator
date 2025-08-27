@@ -1,13 +1,13 @@
-﻿using CQBus.Mediator.Invokers;
+﻿using CQBus.Mediator.Executors;
+using CQBus.Mediator.Invokers;
 using CQBus.Mediator.Maps;
 using CQBus.Mediator.Messages;
 using CQBus.Mediator.NotificationPublishers;
-using CQBus.Mediator.PipelineBuilders;
 
 namespace CQBus.Mediator;
 
 public sealed class Mediator(
-    IPipelineBuilderFactory factory,
+    IExecutorFactory factory,
     IMediatorDispatchMaps maps,
     INotificationPublisher publisher) : IMediator
 {

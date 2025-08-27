@@ -1,11 +1,11 @@
 ﻿using System.Collections.Frozen;
 using System.Reflection;
 using CQBus.Mediator.Configurations;
+using CQBus.Mediator.Executors;
 using CQBus.Mediator.Handlers;
 using CQBus.Mediator.Invokers;
 using CQBus.Mediator.Maps;
 using CQBus.Mediator.NotificationPublishers;
-using CQBus.Mediator.PipelineBuilders;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -128,23 +128,23 @@ public static class DependencyInjection
     private static void AddPipelineBuilders(this IServiceCollection services, MediatorConfiguration configurationOptions)
     {
         services.Add(ServiceDescriptor.Describe(
-            typeof(INotificationPipelineBuilder),
-            typeof(NotificationPipelineBuilder),
+            typeof(INotificationExecutor),
+            typeof(NotificationExecutor),
             configurationOptions.ServiceLifetime));
 
         services.Add(ServiceDescriptor.Describe(
-            typeof(IRequestPipelineBuilder),
-            typeof(RequestPipelineBuilder),
+            typeof(IRequestExecutor),
+            typeof(RequestExecutor),
             configurationOptions.ServiceLifetime));
 
         services.Add(ServiceDescriptor.Describe(
-            typeof(IStreamPipelineBuilder),
-            typeof(StreamPipelineBuilder),
+            typeof(IStreamExecutor),
+            typeof(StreamExecutor),
             configurationOptions.ServiceLifetime));
 
         services.Add(ServiceDescriptor.Describe(
-            typeof(IPipelineBuilderFactory),
-            typeof(PipelineBuilderFactory),
+            typeof(IExecutorFactory),
+            typeof(ExecutorFactory),
             configurationOptions.ServiceLifetime));
     }
 

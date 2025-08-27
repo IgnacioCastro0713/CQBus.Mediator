@@ -3,9 +3,9 @@ using CQBus.Mediator.Messages;
 using CQBus.Mediator.NotificationPublishers;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace CQBus.Mediator.PipelineBuilders;
+namespace CQBus.Mediator.Executors;
 
-public interface INotificationPipelineBuilder
+public interface INotificationExecutor
 {
     ValueTask Execute<TNotification>(
         TNotification notification,
@@ -14,7 +14,7 @@ public interface INotificationPipelineBuilder
         where TNotification : INotification;
 }
 
-internal sealed class NotificationPipelineBuilder(IServiceProvider serviceProvider) : INotificationPipelineBuilder
+internal sealed class NotificationExecutor(IServiceProvider serviceProvider) : INotificationExecutor
 {
     public ValueTask Execute<TNotification>(
         TNotification notification,
@@ -22,11 +22,12 @@ internal sealed class NotificationPipelineBuilder(IServiceProvider serviceProvid
         CancellationToken cancellationToken)
         where TNotification : INotification
     {
-        IEnumerable<INotificationHandler<TNotification>> enumerable = serviceProvider.GetServices<INotificationHandler<TNotification>>();
+        IEnumerable<INotificationHandler<TNotification>> enumerable =
+            serviceProvider.GetServices<INotificationHandler<TNotification>>();
+
         INotificationHandler<TNotification>[] handlers = enumerable switch
         {
             INotificationHandler<TNotification>[] arr => arr,
-            List<INotificationHandler<TNotification>> list => list.ToArray(),
             _ => enumerable.ToArray()
         };
 

@@ -1,12 +1,12 @@
 using System.Collections.Frozen;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
+using CQBus.Mediator.Executors;
 using CQBus.Mediator.Handlers;
 using CQBus.Mediator.Invokers;
 using CQBus.Mediator.Maps;
 using CQBus.Mediator.Messages;
 using CQBus.Mediator.NotificationPublishers;
-using CQBus.Mediator.PipelineBuilders;
 using Moq;
 
 namespace Mediator.Tests;
@@ -62,16 +62,16 @@ public class MediatorTests
     [ExcludeFromCodeCoverage]
     private static CQBus.Mediator.Mediator CreateMediator(
         IMediatorDispatchMaps maps,
-        out Mock<IRequestPipelineBuilder> reqBuilder,
-        out Mock<INotificationPipelineBuilder> notifBuilder,
-        out Mock<IStreamPipelineBuilder> streamBuilder,
+        out Mock<IRequestExecutor> reqBuilder,
+        out Mock<INotificationExecutor> notifBuilder,
+        out Mock<IStreamExecutor> streamBuilder,
         out INotificationPublisher publisher)
     {
-        reqBuilder = new Mock<IRequestPipelineBuilder>(MockBehavior.Strict);
-        notifBuilder = new Mock<INotificationPipelineBuilder>(MockBehavior.Strict);
-        streamBuilder = new Mock<IStreamPipelineBuilder>(MockBehavior.Strict);
+        reqBuilder = new Mock<IRequestExecutor>(MockBehavior.Strict);
+        notifBuilder = new Mock<INotificationExecutor>(MockBehavior.Strict);
+        streamBuilder = new Mock<IStreamExecutor>(MockBehavior.Strict);
 
-        var factory = new Mock<IPipelineBuilderFactory>(MockBehavior.Strict);
+        var factory = new Mock<IExecutorFactory>(MockBehavior.Strict);
         factory.SetupGet(f => f.Request).Returns(reqBuilder.Object);
         factory.SetupGet(f => f.Notification).Returns(notifBuilder.Object);
         factory.SetupGet(f => f.Stream).Returns(streamBuilder.Object);

@@ -1,41 +1,41 @@
-﻿using CQBus.Mediator.Messages;
+﻿using CQBus.Mediator.Executors;
+using CQBus.Mediator.Messages;
 using CQBus.Mediator.NotificationPublishers;
-using CQBus.Mediator.PipelineBuilders;
 
 namespace CQBus.Mediator.Invokers;
 
 internal static class MediatorInvoker
 {
     public static ValueTask<TResponse> Request<TRequest, TResponse>(
-        IRequestPipelineBuilder pipelineBuilder,
+        IRequestExecutor executor,
         IRequest<TResponse> request,
         CancellationToken cancellationToken)
         where TRequest : IRequest<TResponse>
-        => pipelineBuilder.Execute<TRequest, TResponse>((TRequest)request, cancellationToken);
+        => executor.Execute<TRequest, TResponse>((TRequest)request, cancellationToken);
 
     public static ValueTask Notification<TNotification>(
-        INotificationPipelineBuilder pipelineBuilder,
+        INotificationExecutor executor,
         TNotification notification,
         INotificationPublisher publisher,
         CancellationToken cancellationToken)
         where TNotification : INotification
-        => pipelineBuilder.Execute(notification, publisher, cancellationToken);
+        => executor.Execute(notification, publisher, cancellationToken);
 
     public static IAsyncEnumerable<TResponse> Stream<TRequest, TResponse>(
-        IStreamPipelineBuilder pipelineBuilder,
+        IStreamExecutor executor,
         IStreamRequest<TResponse> request,
         CancellationToken cancellationToken)
         where TRequest : IStreamRequest<TResponse>
-        => pipelineBuilder.Execute<TRequest, TResponse>((TRequest)request, cancellationToken);
+        => executor.Execute<TRequest, TResponse>((TRequest)request, cancellationToken);
 }
 
 
 internal delegate ValueTask<TResponse> RequestInvoker<TResponse>(
-    IRequestPipelineBuilder pb, IRequest<TResponse> request, CancellationToken ct);
+    IRequestExecutor exc, IRequest<TResponse> request, CancellationToken ct);
 
 internal delegate ValueTask NotificationInvoker<in TNotification>(
-    INotificationPipelineBuilder pb, TNotification notification, INotificationPublisher publisher, CancellationToken ct)
+    INotificationExecutor exc, TNotification notification, INotificationPublisher publisher, CancellationToken ct)
     where TNotification : INotification;
 
 internal delegate IAsyncEnumerable<TResponse> StreamInvoker<TResponse>(
-    IStreamPipelineBuilder pb, IStreamRequest<TResponse> request, CancellationToken ct);
+    IStreamExecutor exc, IStreamRequest<TResponse> request, CancellationToken ct);

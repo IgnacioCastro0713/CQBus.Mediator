@@ -3,9 +3,9 @@ using CQBus.Mediator.Messages;
 using CQBus.Mediator.Pipelines;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace CQBus.Mediator.PipelineBuilders;
+namespace CQBus.Mediator.Executors;
 
-public interface IRequestPipelineBuilder
+public interface IRequestExecutor
 {
     ValueTask<TResponse> Execute<TRequest, TResponse>(
         TRequest request,
@@ -13,30 +13,28 @@ public interface IRequestPipelineBuilder
         where TRequest : IRequest<TResponse>;
 }
 
-internal sealed class RequestPipelineBuilder(IServiceProvider serviceProvider) : IRequestPipelineBuilder
+internal sealed class RequestExecutor(IServiceProvider serviceProvider) : IRequestExecutor
 {
     public ValueTask<TResponse> Execute<TRequest, TResponse>(
         TRequest request,
         CancellationToken cancellationToken)
         where TRequest : IRequest<TResponse>
     {
-        IEnumerable<IPipelineBehavior<TRequest, TResponse>> enumerable = serviceProvider.GetServices<IPipelineBehavior<TRequest, TResponse>>();
+        IEnumerable<IPipelineBehavior<TRequest, TResponse>> enumerable =
+            serviceProvider.GetServices<IPipelineBehavior<TRequest, TResponse>>();
+
         IPipelineBehavior<TRequest, TResponse>[] behaviors = enumerable switch
         {
             IPipelineBehavior<TRequest, TResponse>[] arr => arr,
-            List<IPipelineBehavior<TRequest, TResponse>> list => list.ToArray(),
             _ => enumerable.ToArray()
         };
 
-        IRequestHandler<TRequest, TResponse> handler = serviceProvider.GetRequiredService<IRequestHandler<TRequest, TResponse>>();
+        IRequestHandler<TRequest, TResponse> handler =
+            serviceProvider.GetRequiredService<IRequestHandler<TRequest, TResponse>>();
 
-        if (behaviors.Length == 0)
-        {
-            return handler.Handle(request, cancellationToken);
-        }
-
-        var chain = new Chain<TRequest, TResponse>(behaviors, handler, request);
-        return chain.Next(cancellationToken);
+        return behaviors.Length == 0
+            ? handler.Handle(request, cancellationToken)
+            : new Chain<TRequest, TResponse>(behaviors, handler, request).Start(cancellationToken);
     }
 
     private sealed class Chain<TRequest, TResponse>
@@ -46,6 +44,7 @@ internal sealed class RequestPipelineBuilder(IServiceProvider serviceProvider) :
         private readonly IPipelineBehavior<TRequest, TResponse>[] _behaviors;
         private readonly IRequestHandler<TRequest, TResponse> _handler;
         private readonly TRequest _request;
+        private readonly RequestHandlerDelegate<TResponse> _next;
 
         internal Chain(
             IPipelineBehavior<TRequest, TResponse>[] behaviors,
@@ -55,17 +54,14 @@ internal sealed class RequestPipelineBuilder(IServiceProvider serviceProvider) :
             _behaviors = behaviors;
             _handler = handler;
             _request = request;
+            _next = Next;
         }
 
-        public ValueTask<TResponse> Next(CancellationToken ct)
-        {
-            if (_index >= _behaviors.Length)
-            {
-                return _handler.Handle(_request, ct);
-            }
+        public ValueTask<TResponse> Start(CancellationToken ct) =>
+            _behaviors[_index++].Handle(_request, _next, ct);
 
-            IPipelineBehavior<TRequest, TResponse> current = _behaviors[_index++];
-            return current.Handle(_request, Next, ct);
-        }
+        private ValueTask<TResponse> Next(CancellationToken ct) => _index >= _behaviors.Length
+            ? _handler.Handle(_request, ct)
+            : _behaviors[_index++].Handle(_request, _next, ct);
     }
 }
