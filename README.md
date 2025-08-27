@@ -1,4 +1,4 @@
-# CQBus.Mediator
+# <img src="https://github.com/IgnacioCastro0713/CQBus.Mediator/raw/main/icon.png" width="35"> CQBus.Mediator
 
 ![Release](https://github.com/IgnacioCastro0713/CQBus.Mediator/actions/workflows/build-release.yml/badge.svg)
 [![NuGet](https://img.shields.io/nuget/dt/CQBus.Mediator.svg)](https://www.nuget.org/packages/CQBus.Mediator) 
@@ -35,11 +35,11 @@ CQBus.Mediator is a high-performance and allocation-free implementation of the M
 Install via NuGet Package Manager:
 
 ```pwsh
-dotnet add package CQBus.Mediator --version 2.1.1
+dotnet add package CQBus.Mediator --version 2.2.0
 ```
 or
 ```xml
-<PackageReference Include="CQBus.Mediator" Version="2.1.1" />
+<PackageReference Include="CQBus.Mediator" Version="2.2.0" />
 ```
 
 
