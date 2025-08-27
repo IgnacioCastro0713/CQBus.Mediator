@@ -35,11 +35,11 @@ CQBus.Mediator is a high-performance and allocation-free implementation of the M
 Install via NuGet Package Manager:
 
 ```pwsh
-dotnet add package CQBus.Mediator --version 2.0.1
+dotnet add package CQBus.Mediator --version 2.1.1
 ```
 or
 ```xml
-<PackageReference Include="CQBus.Mediator" Version="2.0.1" />
+<PackageReference Include="CQBus.Mediator" Version="2.1.1" />
 ```
 
 
